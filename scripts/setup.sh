@@ -8,12 +8,15 @@ export HF_HUB_DISABLE_XET=1
 
 echo "→ Building the Swift components"
 mkdir -p bin logs sessions
+# build <binary> <Info.plist> <sources...>
 build() {
-  swiftc -O -swift-version 5 -o "bin/$1" "native/$2.swift" \
-    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "native/$3"
+  local binary=$1 plist=$2
+  shift 2
+  swiftc -O -swift-version 5 -o "bin/$binary" "$@" \
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "native/$plist"
 }
-build midas-audio AudioCapture AudioInfo.plist
-build midas-overlay Overlay OverlayInfo.plist
+build midas-audio AudioInfo.plist native/AudioCapture.swift
+build midas-overlay OverlayInfo.plist native/Overlay/*.swift
 # A stable identity with the Info.plist bound, so macOS can show the permission prompt.
 codesign -s - -f --identifier dev.midas.audio bin/midas-audio 2>/dev/null
 
