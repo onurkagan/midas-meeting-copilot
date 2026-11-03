@@ -46,7 +46,7 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, auto_answer: 
                     }
                 )
             elif url.path == "/api/snapshot":
-                self._send(store.snapshot())
+                self._send(store.snapshot(int(query.get("since", 0))))
             elif url.path == "/api/wait":
                 cursor = int(query.get("cursor", 0))
                 timeout = min(float(query.get("timeout", 30)), 3600.0)

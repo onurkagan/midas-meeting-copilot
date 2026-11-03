@@ -16,6 +16,8 @@ REQUEST = "request"
 class Store:
     def __init__(self, session_file: Path):
         self.session_file = session_file
+        # Identifies this run, so the panel notices a restarted daemon (ids start at 1 again).
+        self.started = time.time()
         self._cond = threading.Condition()
         self._events: list[dict] = []
         self.partial = ""
@@ -97,7 +99,9 @@ class Store:
                 self.claude_seen_at = time.time()
             return len(self._events), fresh, self.partial
 
-    def snapshot(self) -> dict:
+    def snapshot(self, since: int = 0) -> dict:
+        """Panel state plus every event after id `since`, so the panel can keep the full
+        timeline while fetching only what is new."""
         with self._cond:
             answers = [e for e in self._events if e["kind"] == ANSWER]
             requests = [e for e in self._events if e["kind"] == REQUEST]
@@ -120,6 +124,9 @@ class Store:
                 "answers": answers[-15:],
                 "session_file": self.session_file.name,
                 "copilot": self.copilot,
+                "session": self.started,
+                "count": len(self._events),
+                "events": self._events[max(since, 0) :],
             }
 
     def _append_to_file(self, event: dict):
