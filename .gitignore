@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+bin/
+logs/
+sessions/
+context.md
+.mcp.json
+build/
+copilot.json
+.DS_Store
