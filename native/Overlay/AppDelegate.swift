@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             watchDaemon(root: root)
         }
         panel = OverlayPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 620),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered, defer: false)
         panel.sharingType = .none  // excluded from screen sharing, screenshots and recordings
@@ -47,7 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isMovableByWindowBackground = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.minSize = NSSize(width: 300, height: 260)
+        panel.minSize = NSSize(width: 340, height: 400)
+        // Always dark: the HUD material is dark, and light-mode text would vanish on it.
+        panel.appearance = NSAppearance(named: .darkAqua)
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             panel.standardWindowButton(button)?.isHidden = true
         }
@@ -73,10 +75,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         panel.contentView = background
 
-        if !panel.setFrameUsingName("MidasOverlay"), let screen = NSScreen.main?.visibleFrame {
-            panel.setFrameOrigin(NSPoint(x: screen.maxX - 420, y: screen.maxY - 520))
+        if !panel.setFrameUsingName("MidasPanel"), let screen = NSScreen.main?.visibleFrame {
+            panel.setFrameOrigin(NSPoint(x: screen.maxX - 440, y: screen.maxY - 640))
         }
-        panel.setFrameAutosaveName("MidasOverlay")
+        panel.setFrameAutosaveName("MidasPanel")
         panel.orderFrontRegardless()
 
         client.start()
