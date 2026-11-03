@@ -86,12 +86,13 @@ EOF
 
 echo "→ Icon"
 ICONSET="$BUILD/Midas.iconset"
+# Rendered from the master artwork, assets/icon/Midas.svg.
+ICON="$ROOT/assets/icon/Midas-1024.png"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
-"$ROOT/bin/midas-overlay" --render-icon "$BUILD/icon-1024.png"
 for size in 16 32 128 256 512; do
-  sips -z "$size" "$size" "$BUILD/icon-1024.png" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
-  sips -z $((size * 2)) $((size * 2)) "$BUILD/icon-1024.png" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+  sips -z "$size" "$size" "$ICON" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+  sips -z $((size * 2)) $((size * 2)) "$ICON" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Midas.icns"
 
