@@ -1,0 +1,117 @@
+# Midas
+
+An invisible meeting copilot for macOS. Midas listens to whatever your Mac is playing (Zoom, Meet, Teams…) and transcribes it live, on device. When you press **Answer**, Claude Code receives everything said so far over MCP and shows a reply you can say out loud in a small panel that stays out of screen sharing.
+
+- **Never joins the meeting.** No bot, no virtual audio driver. Audio is captured straight from the system with macOS's Core Audio process tap API.
+- **Hidden from screen sharing.** The panel and its menu bar icon are marked `NSWindow.sharingType = .none`, so they stay out of screen shares, screenshots and recordings. The panel has no Dock icon, doesn't appear in ⌘⇥, and never takes focus away from the meeting app.
+- **Audio never leaves your Mac.** Transcription runs locally on Apple Silicon with Whisper (mlx-whisper, large-v3-turbo). Only text is sent to Claude.
+
+Transcription handles Turkish and English by default (configurable).
+
+## How it works
+
+```
+System audio ──► midas-audio (Swift, Core Audio tap, 16 kHz PCM)
+                   │
+                   ▼
+              Midas daemon (Python)
+              VAD → Whisper (local) → event log ──► sessions/*.md
+                   │  127.0.0.1:47821
+          ┌────────┴─────────┐
+          ▼                  ▼
+   midas-overlay        MCP bridge (stdio) ◄──► Claude Code (/midas loop)
+   (hidden panel)       wait_for_conversation · show_answer · get_transcript
+```
+
+Claude Code runs the `/midas` command as a loop. `wait_for_conversation` blocks until you press **Answer** in the panel, then returns everything transcribed since the last answer, plus the sentence still being spoken. Claude drafts a reply to the latest question and posts it to the panel with `show_answer`. To let Claude also suggest replies on its own, set `auto_answer = true` in `config.toml`.
+
+## Setup
+
+Requirements: Apple Silicon Mac, macOS 14.4+, Xcode command line tools, Python 3.11+, [Claude Code](https://docs.claude.com/claude-code).
+
+```bash
+./midas setup
+```
+
+This builds the Swift components, creates the `.venv` environment, downloads the Whisper model (~1.6 GB) and writes `.mcp.json` for Claude Code.
+
+**Audio permission:** On first run, macOS asks for "System Audio Recording" permission for **midas-audio**; allow it. The permission doesn't depend on which terminal launches Midas, because midas-audio holds its own. If you denied it, the panel shows a warning. To enable it later: System Settings → Privacy & Security → Screen & System Audio Recording → **System Audio Recording Only** → midas-audio. Midas picks up the change within a few seconds. macOS may ask again after `./midas setup` rebuilds the components.
+
+## Using the app
+
+```bash
+./midas install
+```
+
+Installs `Midas.app` into `/Applications`. Open it from Spotlight (⌘Space → Midas): listening starts, the hidden panel appears and Claude Code runs in the background as the copilot. No terminal window opens; you talk to Claude through the panel. Press ⏻ in the panel to quit.
+
+- macOS doesn't let apps run code from the Desktop or Documents folders, so the app runs a copy of this folder from `~/Library/Application Support/Midas`.
+- `context.md`, `config.toml` and the meeting logs (`sessions/`) live there too. The 📁 button in the panel opens that folder.
+- After changing code in this folder, run `./midas install` again; your settings and logs are kept.
+- Click the Midas icon in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
+- The ⚙︎ button in the panel picks Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
+- **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
+
+## Using it from a terminal
+
+```bash
+./midas start
+```
+
+The daemon starts in the background, the panel opens at the top right, and Claude Code enters the `/midas` copilot loop. On first launch Claude Code asks you to approve the `midas` server from `.mcp.json`. Quitting Claude Code also stops the daemon.
+
+To give Claude a focus for this particular meeting, inside Claude Code:
+
+```
+/midas Pricing call with a customer today, my discount limit is 10%
+```
+
+For faster replies, pick a faster model: `./midas start --model sonnet`.
+
+### Panel
+
+| Shortcut | Action |
+| --- | --- |
+| ⌃⌥M | Show/hide the panel (clicking the menu bar icon or reopening Midas also brings it back) |
+| ⌃⌥A | **Answer**: have Claude reply to what has been said so far |
+| ⌃⌥P | Pause/resume listening |
+
+The bottom of the panel shows the live transcript. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears at the top of the panel within a few seconds. You can also type a specific request to Claude in the text field. The **Summary** button lists the decisions and action items so far. The icon next to each reply copies its text.
+
+### Personalizing
+
+- `context.md`: who you are, your role, your projects, the meeting agenda. Claude reads it at the start of every session.
+- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`).
+- `.claude/commands/midas.md`: Claude's behavior and reply style (when to answer, length, tone).
+
+The full transcript of each meeting and Claude's replies are written to `sessions/YYYY-MM-DD_HH-MM.md`.
+
+### Using it in your own repository
+
+For technical meetings where Claude should answer from your codebase, add the MCP server at user scope:
+
+```bash
+claude mcp add --scope user midas -- "$PWD/midas" mcp   # run from the Midas folder
+```
+
+Then start the Midas daemon (`./midas run` or `./midas start`), open `claude` in your repository and run the `/mcp__midas__copilot` prompt.
+
+## Commands
+
+```
+./midas setup            install / rebuild
+./midas install          install (or update) Midas.app in /Applications
+./midas start [args]     daemon + Claude Code (/midas)
+./midas run [--input F]  run the daemon in the foreground; --input plays an audio file for testing
+./midas stop             stop the daemon
+./midas status           status
+./midas logs             follow the logs
+```
+
+To try it without a meeting: `./midas run --input recording.m4a`, then `claude` → `/midas` in another terminal.
+
+## Limitations
+
+- Only system audio is captured, so your own voice isn't in the transcript; Claude hears only the other participants. Speakers aren't told apart.
+- The panel's invisibility relies on macOS's window sharing flag. Check with a test share before an important meeting; sharing a single window instead of the whole screen is the safest option.
+- Reply latency is ~1 s of transcription after someone stops talking, plus the Claude model's response time.
