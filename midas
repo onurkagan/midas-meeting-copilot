@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Midas: an invisible meeting copilot.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PY="$ROOT/.venv/bin/python"
+PID_FILE="$ROOT/logs/midas.pid"
+LOG_FILE="$ROOT/logs/daemon.log"
+export PYTHONPATH="$ROOT/src"
+# Hugging Face's xet transfer can stall on large files; plain HTTP is reliable.
+export HF_HUB_DISABLE_XET=1
+
+running() { [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; }
+base_url() { "$PY" -c "from midas.config import load_config; print(load_config().base_url)"; }
+
+usage() {
+  cat <<'EOF'
+Usage: ./midas <command>
+
+  setup            build the Swift components, set up Python and the Whisper model
+  install          install Midas.app into /Applications
+  start [args]     start the daemon in the background and open Claude Code with /midas
+                   (args go to claude, e.g. ./midas start --model sonnet)
+  run [--input F]  run the daemon in the foreground (--input: audio file for testing)
+  stop             stop the background daemon
+  status           daemon status
+  logs             follow the daemon logs
+  mcp              MCP server for Claude Code (stdio; .mcp.json calls this)
+EOF
+}
+
+case "${1:-help}" in
+  setup)
+    exec "$ROOT/scripts/setup.sh"
+    ;;
+  install)
+    exec "$ROOT/scripts/install_app.sh"
+    ;;
+  run)
+    shift
+    cd "$ROOT"
+    exec "$PY" -m midas run "$@"
+    ;;
+  mcp)
+    exec "$PY" -m midas mcp
+    ;;
+  start)
+    shift
+    started_here=0
+    if ! running; then
+      mkdir -p "$ROOT/logs"
+      (cd "$ROOT" && nohup "$PY" -m midas run >"$LOG_FILE" 2>&1 &)
+      started_here=1
+      url="$(base_url)"
+      for _ in $(seq 1 50); do
+        curl -sf "$url/api/health" >/dev/null && break
+        sleep 0.2
+      done
+    fi
+    echo "Midas is running (log: logs/daemon.log). Opening Claude Code…"
+    cd "$ROOT"
+    claude "$@" "/midas" || true
+    if [[ $started_here == 1 ]]; then "$0" stop; fi
+    ;;
+  stop)
+    if running; then
+      kill "$(cat "$PID_FILE")"
+      echo "Midas stopped."
+    else
+      echo "Midas is not running."
+    fi
+    ;;
+  status)
+    curl -sf "$(base_url)/api/health" && echo || echo "Midas is not running."
+    ;;
+  logs)
+    tail -f "$LOG_FILE"
+    ;;
+  *)
+    usage
+    ;;
+esac
