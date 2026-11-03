@@ -105,7 +105,6 @@ class Store:
         with self._cond:
             answers = [e for e in self._events if e["kind"] == ANSWER]
             requests = [e for e in self._events if e["kind"] == REQUEST]
-            transcript = [e for e in self._events if e["kind"] == TRANSCRIPT]
             if self.claude_waiting:
                 claude = "ready"
             elif time.time() - self.claude_seen_at < 120:
@@ -120,8 +119,6 @@ class Store:
                 "claude": claude,
                 "pending_request": pending,
                 "partial": self.partial,
-                "transcript": transcript[-8:],
-                "answers": answers[-15:],
                 "session_file": self.session_file.name,
                 "copilot": self.copilot,
                 "session": self.started,
