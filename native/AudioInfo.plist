@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>dev.midas.audio</string>
+	<key>CFBundleName</key>
+	<string>midas-audio</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Midas listens to system audio to transcribe your meetings.</string>
+</dict>
+</plist>
