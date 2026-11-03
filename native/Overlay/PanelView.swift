@@ -38,7 +38,7 @@ struct OverlayView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(nsImage: EarsArt.glyph(size: 18)).renderingMode(.template).foregroundStyle(Brand.blue)
+            Image(nsImage: EarsArt.glyph(size: 22)).renderingMode(.template).foregroundStyle(Brand.blue)
             Text("Midas").font(.system(size: 13, weight: .bold))
             StatusPill(client: client)
             Spacer(minLength: 4)
