@@ -6,9 +6,12 @@ import Combine
 struct MidasEvent: Decodable, Identifiable, Equatable {
     let id: Int
     let time: String
-    let kind: String
+    let kind: String  // "transcript", "request" or "answer"
     let text: String
     let title: String
+
+    /// "HH:MM", for the timeline.
+    var minute: String { String(time.prefix(5)) }
 }
 
 struct CopilotSettings: Decodable, Equatable {
@@ -23,14 +26,17 @@ struct Snapshot: Decodable {
     let claude: String
     let pending_request: Bool
     let partial: String
-    let transcript: [MidasEvent]
-    let answers: [MidasEvent]
     let copilot: CopilotSettings?  // nil when Claude runs in a terminal, not under Midas
+    let session: Double
+    let count: Int
+    let events: [MidasEvent]
 }
 
 final class MidasClient: ObservableObject {
-    @Published var snapshot: Snapshot?
-    @Published var connected = false
+    @Published private(set) var snapshot: Snapshot?
+    /// The whole meeting so far, oldest first; each poll fetches only what is new.
+    @Published private(set) var events: [MidasEvent] = []
+    @Published private(set) var connected = false
     private let base: URL
     private var timer: Timer?
     private var inFlight = false
@@ -44,19 +50,36 @@ final class MidasClient: ObservableObject {
         poll()
     }
 
+    var pending: Bool { snapshot?.pending_request == true }
+    var partial: String { snapshot?.partial ?? "" }
+
     private func poll() {
         guard !inFlight else { return }
         inFlight = true
-        var request = URLRequest(url: base.appendingPathComponent("snapshot"))
+        let since = events.last?.id ?? 0
+        let url = base.appendingPathComponent("snapshot")
+            .appending(queryItems: [URLQueryItem(name: "since", value: String(since))])
+        var request = URLRequest(url: url)
         request.timeoutInterval = 2
         URLSession.shared.dataTask(with: request) { data, _, _ in
             let snapshot = data.flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
             DispatchQueue.main.async {
                 self.inFlight = false
-                self.connected = snapshot != nil
-                if let snapshot { self.snapshot = snapshot }
+                if let snapshot { self.apply(snapshot, since: since) } else { self.connected = false }
             }
         }.resume()
+    }
+
+    func apply(_ snapshot: Snapshot, since: Int) {
+        if snapshot.session != self.snapshot?.session {
+            // A (re)started daemon numbers its events from 1 again: start over.
+            events = since == 0 ? snapshot.events : []
+        } else {
+            let last = events.last?.id ?? 0
+            events += snapshot.events.filter { $0.id > last }
+        }
+        self.snapshot = snapshot
+        connected = true
     }
 
     private func post(_ path: String, _ body: [String: Any]) {
@@ -70,6 +93,8 @@ final class MidasClient: ObservableObject {
     }
 
     func ask(_ text: String) { post("request", ["text": text]) }
+
+    func summarize() { ask("Summarize the meeting so far and list the action items.") }
 
     var statusLine: String {
         guard connected, let snapshot else { return "can't reach the daemon" }
