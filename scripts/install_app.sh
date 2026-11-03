@@ -88,7 +88,7 @@ echo "→ Icon"
 ICONSET="$BUILD/Midas.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
-swift "$ROOT/native/MakeIcon.swift" "$BUILD/icon-1024.png"
+"$ROOT/bin/midas-overlay" --render-icon "$BUILD/icon-1024.png"
 for size in 16 32 128 256 512; do
   sips -z "$size" "$size" "$BUILD/icon-1024.png" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
   sips -z $((size * 2)) $((size * 2)) "$BUILD/icon-1024.png" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null

@@ -14,6 +14,11 @@ while let argument = arguments.next() {
     case "--port": port = arguments.next().flatMap(Int.init) ?? port
     case "--parent-pid": parentPID = arguments.next().flatMap { pid_t($0) }
     case "--root": root = arguments.next()
+    case "--render-icon":
+        // scripts/install_app.sh builds Midas.icns from this PNG.
+        guard let path = arguments.next(), let png = EarsArt.iconPNG() else { exit(64) }
+        try png.write(to: URL(fileURLWithPath: path))
+        exit(0)
     default: break
     }
 }
