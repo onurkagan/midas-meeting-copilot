@@ -1,0 +1,35 @@
+# Midas settings. Everything is optional; the commented values are the defaults.
+
+# Local API port (used by the daemon, the MCP bridge and the panel)
+# port = 47821
+
+# mlx-community Whisper model. Faster/smaller: "mlx-community/whisper-small-mlx"
+# model = "mlx-community/whisper-large-v3-turbo"
+
+# One language is forced; with several, Whisper picks among them for every sentence.
+# languages = ["tr", "en"]
+
+# Names and terms Whisper should spell correctly
+# vocabulary = "Midas, Kubernetes, Jira, Alice, Bob"
+
+# Silence (ms) that ends a sentence, and the longest chunk (s)
+# silence_ms = 700
+# max_segment_s = 20.0
+
+# Live (unfinished) text in the panel while someone is talking
+# partials = true
+
+# Open the hidden panel
+# overlay = true
+
+# false: Claude replies only when you press "Answer".
+# true: it also suggests replies by itself when it sees a question or request.
+# auto_answer = false
+
+# Default model and effort for the Claude that Midas.app runs in the background.
+# Your choice from the panel's ⚙︎ button (saved in copilot.json) overrides these.
+# claude_model = "opus"       # opus, sonnet, haiku
+# claude_effort = "medium"    # low, medium, high, max
+
+# How long one idle wait lasts (s). Keep it under the 1 h prompt-cache lifetime.
+# idle_wait_s = 1500
