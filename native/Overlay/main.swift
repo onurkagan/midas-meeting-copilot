@@ -14,6 +14,11 @@ while let argument = arguments.next() {
     case "--port": port = arguments.next().flatMap(Int.init) ?? port
     case "--parent-pid": parentPID = arguments.next().flatMap { pid_t($0) }
     case "--root": root = arguments.next()
+    case "--render-preview":
+        // Design check without a meeting: writes PNGs of the panel with sample data.
+        guard let folder = arguments.next() else { exit(64) }
+        Preview.render(into: folder)
+        exit(0)
     default: break
     }
 }
