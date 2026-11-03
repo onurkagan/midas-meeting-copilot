@@ -17,7 +17,7 @@ struct AnswerCard: View {
             HStack(spacing: 6) {
                 Text(answer.title.isEmpty ? "Suggestion" : answer.title)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(latest ? Color.yellow : Color.secondary)
+                    .foregroundStyle(latest ? Brand.lightBlue : Color.secondary)
                     .lineLimit(1)
                 Spacer()
                 Text(answer.time).font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -56,8 +56,8 @@ struct OverlayView: View {
     private var statusColor: Color {
         guard client.connected, let snapshot = client.snapshot else { return .red }
         if snapshot.paused { return .orange }
-        if snapshot.status != "listening" { return .yellow }
-        return snapshot.speaking ? .green : .green.opacity(0.6)
+        if snapshot.status != "listening" { return .gray }
+        return snapshot.speaking ? Brand.blue : Brand.blue.opacity(0.6)
     }
 
     var body: some View {
@@ -79,6 +79,7 @@ struct OverlayView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
+            Image(nsImage: EarsArt.glyph(size: 16)).renderingMode(.template).foregroundStyle(Brand.blue)
             Circle().fill(statusColor).frame(width: 8, height: 8)
             Text("Midas").font(.system(size: 13, weight: .bold))
             Text(client.statusLine).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
@@ -90,7 +91,7 @@ struct OverlayView: View {
                     Image(systemName: "slider.horizontal.3")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(showSettings ? Color.yellow : Color.primary)
+                .foregroundStyle(showSettings ? Brand.lightBlue : Color.primary)
                 .help("Claude model and effort")
             }
             Button(action: client.togglePause) {
@@ -228,7 +229,7 @@ struct OverlayView: View {
                     Label("Answer", systemImage: "sparkles").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.80, green: 0.56, blue: 0.10))
+                .tint(Brand.deepBlue)
                 .controlSize(.large)
                 .disabled(client.snapshot?.pending_request == true)
                 .help("Reply to what has been said so far (⌃⌥A)")

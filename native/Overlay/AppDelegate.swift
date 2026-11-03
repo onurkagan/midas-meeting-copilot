@@ -18,7 +18,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: OverlayPanel!
     private var daemon: Process?
     private var statusItem: NSStatusItem!
-    private var statusIcon = ""
     private var subscriptions: Set<AnyCancellable> = []
 
     init(port: Int, parentPID: pid_t?, root: String?, launchesDaemon: Bool) {
@@ -180,6 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// AppKit draws menus in its own windows, which screen sharing would capture.
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = EarsArt.glyph(size: 18)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
         updateStatusItem()
@@ -195,10 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Same treatment as the panel: keep the icon out of screen sharing.
         statusItem.button?.window?.sharingType = .none
         statusItem.button?.toolTip = "Midas · " + client.statusLine + "\nClick to show/hide the panel (⌃⌥M)"
-        let name =
-            !client.connected ? "waveform.slash" : client.snapshot?.paused == true ? "pause.circle" : "waveform"
-        guard name != statusIcon else { return }
-        statusIcon = name
-        statusItem.button?.image = NSImage(systemSymbolName: name, accessibilityDescription: "Midas")
+        // Midas's ears, dimmed while it isn't listening.
+        statusItem.button?.appearsDisabled = !client.connected || client.snapshot?.paused == true
     }
 }
