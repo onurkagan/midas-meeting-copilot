@@ -43,13 +43,13 @@ This builds the Swift components, creates the `.venv` environment, downloads the
 ./midas install
 ```
 
-Installs `Midas.app` into `/Applications`. Open it from Spotlight (⌘Space → Midas): listening starts, the hidden panel appears and Claude Code runs in the background as the copilot. No terminal window opens; you talk to Claude through the panel. Press ⏻ in the panel to quit.
+Installs `Midas.app` into `/Applications`. Open it from Spotlight (⌘Space → Midas): listening starts, the hidden panel appears and Claude Code runs in the background as the copilot. No terminal window opens; you talk to Claude through the panel. To quit, use **Quit Midas** in the panel's settings (⚙︎).
 
 - macOS doesn't let apps run code from the Desktop or Documents folders, so the app runs a copy of this folder from `~/Library/Application Support/Midas`.
-- `context.md`, `config.toml` and the meeting logs (`sessions/`) live there too. The 📁 button in the panel opens that folder.
+- `context.md`, `config.toml` and the meeting logs (`sessions/`) live there too. **Open folder** in the panel's settings (⚙︎) opens that folder.
 - After changing code in this folder, run `./midas install` again; your settings and logs are kept.
-- Click the Midas icon in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
-- The ⚙︎ button in the panel picks Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
+- Click Midas's ears in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
+- The panel's settings (⚙︎) pick Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
 - **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
 
 ## Using it from a terminal
@@ -76,7 +76,7 @@ For faster replies, pick a faster model: `./midas start --model sonnet`.
 | ⌃⌥A | **Answer**: have Claude reply to what has been said so far |
 | ⌃⌥P | Pause/resume listening |
 
-The bottom of the panel shows the live transcript. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears at the top of the panel within a few seconds. You can also type a specific request to Claude in the text field. The **Summary** button lists the decisions and action items so far. The icon next to each reply copies its text.
+The whole meeting flows in one timeline: what was said, where you asked for an answer, and Claude's reply right below your request. The sentence being spoken appears live at the bottom. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears within a few seconds. The timeline follows along while you're at the bottom; if you scroll up to reread something, a **New** button takes you back. You can also type a specific request to Claude in the text field, and **Summary** lists the decisions and action items so far. The icon on each reply copies its text. The status pill at the top shows whether Midas is listening and Claude is ready; the ⚙︎ drawer holds the model and effort choice, the hotkeys, **Open folder** and **Quit Midas**.
 
 ### Personalizing
 
