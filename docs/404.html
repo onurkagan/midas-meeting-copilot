@@ -5,19 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Page not found · Midas</title>
 <meta name="robots" content="noindex">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" sizes="32x32" href="/midas-meeting-copilot/assets/icon-32.png">
 <style>
+  @font-face {
+    font-family: "Plus Jakarta Sans";
+    src: url("/midas-meeting-copilot/assets/fonts/PlusJakartaSans-Variable.ttf") format("truetype");
+    font-weight: 200 800; font-display: swap;
+  }
+  :root { --bg: #f3f8fb; --wash: rgba(143, 195, 217, .45); --text: #0e2a3b; --muted: #44606f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #07141d; --wash: rgba(31, 111, 184, .22); --text: #e8f1f7; --muted: #9fb7c6; }
+  }
   body {
     margin: 0; min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 24px;
-    background: radial-gradient(600px 400px at 50% 30%, rgba(76, 141, 255, .25), transparent 70%), #050c1f;
-    color: #eef3ff; font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(600px 400px at 50% 30%, var(--wash), transparent 70%), var(--bg);
+    color: var(--text); font: 17px/1.6 "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   img { width: 96px; height: 96px; }
-  h1 { margin: 20px 0 0; font-size: 32px; letter-spacing: -.02em; }
-  p { margin: 10px 0 24px; color: #a7b4d2; }
-  a { display: inline-block; padding: 12px 18px; border-radius: 12px; color: #fff; text-decoration: none; font-weight: 600;
-      background: linear-gradient(180deg, #4a8dff, #1f5bdb); }
+  h1 { margin: 20px 0 0; font-size: 32px; letter-spacing: -.03em; font-weight: 800; }
+  p { margin: 10px 0 24px; color: var(--muted); }
+  a { display: inline-block; padding: 12px 20px; border-radius: 999px; color: #fff; text-decoration: none; font-weight: 700; background: #1f6fb8; }
 </style>
 </head>
 <body>
