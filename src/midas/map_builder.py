@@ -341,4 +341,5 @@ class MapBuilder:
         self._publish()
 
     def _publish(self):
-        self.store.update(map_info=self.map.summary())
+        live = self.config.map_live and self._reads_along()
+        self.store.update(map_info={**self.map.summary(), "live": live})

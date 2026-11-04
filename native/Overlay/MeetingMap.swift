@@ -10,6 +10,7 @@ struct MapInfo: Decodable, Equatable {
     let state: String
     let counts: [String: Int]
     var saved: MapSaved? = nil
+    var live: Bool? = nil  // the map follows the meeting by itself (a local model, or auto answer)
 
     /// Everything but the topics.
     var items: Int { counts.filter { $0.key != "topic" }.values.reduce(0, +) }
