@@ -218,7 +218,7 @@ Rules on recording and transcribing conversations differ by country and state, a
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up a development copy and what a good pull request looks like, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as the [security policy](SECURITY.md) describes.
+Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to set up a development copy and what a good pull request looks like, and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as the [security policy](SECURITY.md) describes. The [accessibility statement](ACCESSIBILITY.md) covers what works with assistive technology today and how to report a barrier.
 
 ## About the name
 
