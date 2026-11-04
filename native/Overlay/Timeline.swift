@@ -19,7 +19,7 @@ struct TimelineView: View {
                     ForEach(Array(client.events.enumerated()), id: \.element.id) { index, event in
                         row(event, after: index > 0 ? client.events[index - 1] : nil)
                     }
-                    if client.pending { DraftingCard() }
+                    if client.pending { DraftingCard(name: client.copilotName, draft: client.draft) }
                     if !client.partial.isEmpty { LiveLine(text: client.partial) }
                     Color.clear.frame(height: 1).id(bottom)
                 }
@@ -38,6 +38,9 @@ struct TimelineView: View {
                 }
             }
             .onChange(of: client.partial) { _, _ in
+                if atBottom { proxy.scrollTo(bottom, anchor: .bottom) }
+            }
+            .onChange(of: client.draft) { _, _ in
                 if atBottom { proxy.scrollTo(bottom, anchor: .bottom) }
             }
             .onChange(of: client.pending) { _, pending in
@@ -198,12 +201,27 @@ struct AnswerCard: View {
     }
 }
 
-/// Holds the place where Claude's answer will appear.
+/// Holds the place where the answer will appear; a streaming copilot (Ollama) fills it in
+/// as it writes.
 struct DraftingCard: View {
+    let name: String
+    let draft: String
+
     var body: some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text("Claude is drafting an answer…").font(.system(size: 12.5)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(draft.isEmpty ? "\(name) is drafting an answer…" : "\(name) is writing…")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.secondary)
+            }
+            if !draft.isEmpty {
+                Text(markdown(draft))
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
