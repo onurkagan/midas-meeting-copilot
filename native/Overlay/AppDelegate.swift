@@ -7,6 +7,30 @@ import SwiftUI
 final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    /// The edit shortcuts and the actions they send to the focused text. A Mac app gets
+    /// these from its Edit menu, but Midas has no menu bar (menus would show up in screen
+    /// sharing), so the panel handles them itself.
+    private static let editActions: [String: Selector] = [
+        "x": #selector(NSText.cut(_:)),
+        "c": #selector(NSText.copy(_:)),
+        "v": #selector(NSText.paste(_:)),
+        "a": #selector(NSText.selectAll(_:)),
+        "z": Selector(("undo:")),
+        "⇧z": Selector(("redo:")),
+    ]
+
+    /// ⌘X ⌘C ⌘V ⌘A ⌘Z ⇧⌘Z, sent to whatever text has the focus (the question field).
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command || flags == [.command, .shift],
+           let key = event.charactersIgnoringModifiers?.lowercased(),
+           let action = Self.editActions[(flags.contains(.shift) ? "⇧" : "") + key],
+           NSApp.sendAction(action, to: nil, from: self) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
