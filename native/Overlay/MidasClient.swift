@@ -83,7 +83,10 @@ final class MidasClient: ObservableObject {
     @Published private(set) var meetingMap: MeetingMapData?
     /// From Save map until the daemon reports the map saved.
     @Published private(set) var mapSaving = false
+    /// How many items the user has seen on the Map tab, for its "new" dot.
+    @Published private(set) var mapSeen = 0
     private var mapFetching = false
+    private var pictureVersion = 0
     private let base: URL
     private var timer: Timer?
     private var inFlight = false
@@ -138,7 +141,17 @@ final class MidasClient: ObservableObject {
             if info.version != meetingMap?.version || info.state != meetingMap?.state { fetchMap() }
             if mapSaving, let saved = info.saved?.version, saved == info.version { mapSaving = false }
             if mapSaving, info.error != nil { mapSaving = false }
+            writePicture(info)
         }
+    }
+
+    /// Save map: the daemon writes the text files, the panel adds the picture of the graph.
+    private func writePicture(_ info: MapInfo) {
+        guard let version = info.saved?.version, let path = info.saved?.png, version != pictureVersion,
+              let map = meetingMap, map.version == version else { return }
+        pictureVersion = version
+        let written = MainActor.assumeIsolated { MapPicture.write(map, to: path) }
+        if !written { NSLog("Midas: couldn't write the map picture to \(path)") }
     }
 
     // MARK: Meeting map
@@ -156,6 +169,13 @@ final class MidasClient: ObservableObject {
             }
         }.resume()
     }
+
+    /// The map follows the meeting by itself (a local model, or auto answer).
+    var mapIsLive: Bool { snapshot?.map?.live == true }
+
+    var mapHasNews: Bool { (snapshot?.map?.items ?? 0) > mapSeen }
+
+    func markMapSeen() { mapSeen = snapshot?.map?.items ?? mapSeen }
 
     /// For previews: a map without a daemon.
     func show(map: MeetingMapData) { meetingMap = map }
