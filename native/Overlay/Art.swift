@@ -1,56 +1,72 @@
 import AppKit
 import SwiftUI
 
-/// King Midas's donkey ears rising from his crown: two leaves over a crown, the same
-/// curves as the app icon (assets/icon/src/generate.py), here as a monochrome template
-/// glyph for the menu bar and the panel. Drawn in the icon's 100-unit box, y pointing down.
-enum EarsArt {
-    private static func path(_ build: (NSBezierPath) -> Void) -> NSBezierPath {
-        let path = NSBezierPath()
-        build(path)
-        path.close()
-        return path
-    }
+/// The bubble from the app icon (assets/icon/src/generate.py): a ring of glass holding a
+/// sound wave. The same curves as the icon, in its 1024-unit canvas with y pointing down,
+/// drawn here as the menu bar's template glyph and inside the panel's mark.
+enum BubbleArt {
+    private static let center = CGPoint(x: 512, y: 512)
+    private static let radius: CGFloat = 276
+    /// Line widths of the monochrome glyph, in icon units.
+    private static let ringWidth: CGFloat = 40
+    private static let waveWidth: CGFloat = 44
+    /// The ring's outer edge: what gets fitted into the box.
+    private static let extent = radius + ringWidth / 2
 
-    private static let leftEar = path {
-        $0.move(to: CGPoint(x: 44, y: 62))
-        $0.curve(to: CGPoint(x: 34, y: 12), controlPoint1: CGPoint(x: 33, y: 50), controlPoint2: CGPoint(x: 29, y: 28))
-        $0.curve(to: CGPoint(x: 48, y: 60), controlPoint1: CGPoint(x: 45, y: 22), controlPoint2: CGPoint(x: 50, y: 40))
-    }
-
-    private static let rightEar = path {
-        $0.move(to: CGPoint(x: 56, y: 62))
-        $0.curve(to: CGPoint(x: 66, y: 12), controlPoint1: CGPoint(x: 67, y: 50), controlPoint2: CGPoint(x: 71, y: 28))
-        $0.curve(to: CGPoint(x: 52, y: 60), controlPoint1: CGPoint(x: 55, y: 22), controlPoint2: CGPoint(x: 50, y: 40))
-    }
-
-    private static let crown = path {
-        $0.move(to: CGPoint(x: 28, y: 84))
-        for point in [(31, 66), (40, 74), (50, 62), (60, 74), (69, 66), (72, 84)] {
-            $0.line(to: CGPoint(x: point.0, y: point.1))
+    private static let wave: CGPath = {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 300, y: 512))
+        let curves: [(CGFloat, CGFloat, CGFloat, CGFloat, CGFloat, CGFloat)] = [
+            (330, 512, 340, 452, 362, 452),
+            (390, 452, 392, 588, 420, 588),
+            (450, 588, 452, 380, 482, 380),
+            (512, 380, 514, 644, 544, 644),
+            (574, 644, 576, 420, 604, 420),
+            (632, 420, 634, 560, 662, 560),
+            (686, 560, 696, 512, 724, 512),
+        ]
+        for c in curves {
+            path.addCurve(to: CGPoint(x: c.4, y: c.5), control1: CGPoint(x: c.0, y: c.1), control2: CGPoint(x: c.2, y: c.3))
         }
+        return path
+    }()
+
+    /// The bubble scaled so the ring's outer edge spans `fill` of `rect`, centred in it.
+    struct Fitted {
+        let disc: CGPath
+        let wave: CGPath
+        let ringWidth: CGFloat
+        let waveWidth: CGFloat
     }
 
-    /// The mark alone as a template image (menu bar, panel logo); it takes the
-    /// surrounding tint.
+    static func fitted(in rect: CGRect, fill: CGFloat) -> Fitted {
+        let scale = min(rect.width, rect.height) * fill / (extent * 2)
+        var transform = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+            .scaledBy(x: scale, y: scale)
+            .translatedBy(x: -center.x, y: -center.y)
+        let box = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+        return Fitted(
+            disc: CGPath(ellipseIn: box, transform: &transform),
+            wave: wave.copy(using: &transform) ?? wave,
+            ringWidth: ringWidth * scale,
+            waveWidth: waveWidth * scale)
+    }
+
+    /// The ring and wave as a template image (menu bar); it takes the surrounding tint.
     static func glyph(size: CGFloat) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
-            let shapes = [leftEar, rightEar, crown].map { $0.copy() as! NSBezierPath }
-            let bounds = shapes.reduce(shapes[0].bounds) { $0.union($1.bounds) }
-            // A little air around the mark, like the system's own menu bar glyphs.
-            let scale = min(rect.width / bounds.width, rect.height / bounds.height) * 0.9
-            let fit = AffineTransform(translationByX: rect.midX - bounds.midX * scale, byY: rect.midY - bounds.midY * scale)
-            NSColor.black.set()
-            for shape in shapes {
-                shape.transform(using: AffineTransform(scale: scale))
-                shape.transform(using: fit)
-                shape.fill()
-            }
-            // Soften the crown's points, as in the icon.
-            let crownShape = shapes[2]
-            crownShape.lineWidth = max(2.4 * scale, 0.6)
-            crownShape.lineJoinStyle = .round
-            crownShape.stroke()
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            // A little air around the ring, like the system's own menu bar glyphs.
+            let art = fitted(in: rect, fill: 0.9)
+            context.setStrokeColor(NSColor.black.cgColor)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.setLineWidth(art.ringWidth)
+            context.addPath(art.disc)
+            context.strokePath()
+            context.setLineWidth(art.waveWidth)
+            context.addPath(art.wave)
+            context.strokePath()
             return true
         }
         image.isTemplate = true

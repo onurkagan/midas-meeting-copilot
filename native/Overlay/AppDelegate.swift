@@ -211,7 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// AppKit draws menus in its own windows, which screen sharing would capture.
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = EarsArt.glyph(size: 18)
+        statusItem.button?.image = BubbleArt.glyph(size: 18)
         statusItem.button?.target = self
         statusItem.button?.action = #selector(statusItemClicked)
         updateStatusItem()

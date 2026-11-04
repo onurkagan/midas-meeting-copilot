@@ -121,16 +121,23 @@ struct OverlayView: View {
     }
 }
 
-/// A small app icon: the ears and crown on a tile of sea blue to seafoam.
+/// A small app icon: the glass bubble and its sound wave on a tile of sea blue to seafoam.
 struct MidasMark: View {
     let size: CGFloat
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.3)
-            .fill(LinearGradient(colors: [Color(hex: 0x1F6FB8), Color(hex: 0x3BB3A6)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .fill(LinearGradient(
+                colors: [Color(hex: 0x1B62A8), Color(hex: 0x2A8FB6), Color(hex: 0x3BB3A6)],
+                startPoint: .topLeading, endPoint: .bottomTrailing))
             .frame(width: size, height: size)
-            .overlay(
-                Image(nsImage: EarsArt.glyph(size: size * 0.64)).renderingMode(.template).foregroundStyle(.white))
+            .overlay(Canvas { context, canvas in
+                let art = BubbleArt.fitted(in: CGRect(origin: .zero, size: canvas), fill: 0.72)
+                let line = { (width: CGFloat) in StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round) }
+                context.fill(Path(art.disc), with: .color(.white.opacity(0.16)))
+                context.stroke(Path(art.disc), with: .color(.white.opacity(0.9)), style: line(art.ringWidth * 0.8))
+                context.stroke(Path(art.wave), with: .color(.white), style: line(art.waveWidth))
+            })
             .accessibilityHidden(true)
     }
 }
