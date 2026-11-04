@@ -13,7 +13,7 @@ from .store import ANSWER, REQUEST, TRANSCRIPT, Store
 log = logging.getLogger("midas.api")
 
 
-def serve(store: Store, host: str, port: int, on_quit, on_copilot, auto_answer: bool) -> ThreadingHTTPServer:
+def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool) -> ThreadingHTTPServer:
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -52,6 +52,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, auto_answer: 
                 timeout = min(float(query.get("timeout", 30)), 3600.0)
                 cursor, events, partial = store.wait(cursor, timeout, auto=auto_answer)
                 self._send({"cursor": cursor, "events": events, "partial": partial, "auto": auto_answer})
+            elif url.path == "/api/ollama":
+                self._send(on_ollama())
             elif url.path == "/api/recent":
                 cursor, events = store.recent((TRANSCRIPT, REQUEST), int(query.get("last", 30)))
                 self._send({"cursor": cursor, "events": events, "pending": store.pending_requests()})
@@ -78,7 +80,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, auto_answer: 
                     return on_quit()
                 if action == "copilot":
                     try:
-                        return self._send(on_copilot(body.get("model"), body.get("effort")))
+                        fields = ("provider", "model", "effort", "ollama_model")
+                        return self._send(on_copilot(**{key: body.get(key) for key in fields}))
                     except ValueError as error:
                         return self._send({"error": str(error)}, 400)
                 if action not in ("pause", "resume"):

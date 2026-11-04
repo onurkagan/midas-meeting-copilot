@@ -14,8 +14,11 @@ from datetime import datetime
 from . import api
 from .audio import LISTENING, SILENT_STATUS, FileAudio, SystemAudio
 from .config import (
-    BIN_DIR, CLAUDE_EFFORTS, CLAUDE_MODELS, COPILOT_FILE, LOGS_DIR, PID_FILE, ROOT, SESSIONS_DIR, Config,
+    BIN_DIR, CLAUDE_EFFORTS, CLAUDE_MODELS, COPILOT_FILE, COPILOT_PROVIDERS, LOGS_DIR, PID_FILE, ROOT,
+    SESSIONS_DIR, Config,
 )  # fmt: skip
+from .local_copilot import LocalCopilot
+from .ollama import Ollama, OllamaError
 from .prompt import SYSTEM_PROMPT, copilot_prompt
 from .segmenter import Segment, Segmenter
 from .store import TRANSCRIPT, Store
@@ -46,8 +49,15 @@ class Daemon:
         self._ready = threading.Event()
         self._overlay: subprocess.Popen | None = None
         self._restart_claude = threading.Event()
+        self._settings = threading.Lock()
+        self._ollama = Ollama(config.ollama_url, config.ollama_keep_alive)
         if copilot:
-            settings = {"model": config.claude_model, "effort": config.claude_effort}
+            settings = {
+                "provider": config.provider,
+                "model": config.claude_model,
+                "effort": config.claude_effort,
+                "ollama_model": config.ollama_model,
+            }
             if COPILOT_FILE.exists():
                 settings.update(json.loads(COPILOT_FILE.read_text()))
             self.store.copilot = settings
@@ -56,7 +66,8 @@ class Daemon:
         try:
             server = api.serve(
                 self.store, self.config.host, self.config.port,
-                on_quit=self.stop.set, on_copilot=self.set_copilot, auto_answer=self.config.auto_answer,
+                on_quit=self.stop.set, on_copilot=self.set_copilot, on_ollama=self.ollama_models,
+                auto_answer=self.config.auto_answer,
             )  # fmt: skip
         except OSError:
             log.error("Port %d is in use; Midas may already be running (./midas stop)", self.config.port)
@@ -86,12 +97,35 @@ class Daemon:
                 child.terminate()
         PID_FILE.unlink(missing_ok=True)
 
+    def _provider(self) -> str:
+        return (self.store.copilot or {}).get("provider", "claude")
+
     def _copilot_loop(self):
+        """Runs the copilot the user chose (Claude or a local Ollama model), switching when
+        they choose the other one in the panel."""
+        while not self._ready.wait(1):
+            if self.stop.is_set():
+                return
+        while not self.stop.is_set():
+            provider = self._provider()
+
+            def active(provider=provider) -> bool:
+                return not self.stop.is_set() and self._provider() == provider
+
+            if provider == "ollama":
+                LocalCopilot(self.store, self.config, active, lambda name: self.set_copilot(ollama_model=name)).run()
+            else:
+                self._run_claude(active)
+
+    def _run_claude(self, active):
         """Keeps a headless Claude Code session running the /midas loop, restarting it if it ends."""
         claude = shutil.which(self.config.claude_command)
         if not claude:
             log.error("'%s' not found; cannot start the Claude Code copilot", self.config.claude_command)
-            self.store.update(status="Claude Code not found")
+            self.store.update(copilot_state="missing")
+            while active():
+                self.stop.wait(1)
+            self.store.update(copilot_state=None)
             return
         mcp_config = {
             "mcpServers": {
@@ -116,11 +150,8 @@ class Daemon:
             "MCP_TOOL_TIMEOUT": str((self.config.idle_wait_s + 300) * 1000),
             "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
         }
-        while not self._ready.wait(1):
-            if self.stop.is_set():
-                return
         backoff = 5.0
-        while not self.stop.is_set():
+        while active():
             started = time.monotonic()
             settings = self.store.copilot
             model = CLAUDE_MODELS.get(settings["model"], settings["model"])
@@ -133,35 +164,60 @@ class Daemon:
                 log.info("Claude Code copilot started (%s, effort %s)", settings["model"], settings["effort"])
                 while self._claude.poll() is None and not self.stop.wait(1):
                     pass
-            if self.stop.is_set():
+            if not active():
                 return
             if self._restart_claude.is_set():
                 self._restart_claude.clear()
                 continue
             backoff = 5.0 if time.monotonic() - started > 120 else min(backoff * 2, 120.0)
             log.warning("Claude Code session ended (code %s), restarting in %.0f s", self._claude.returncode, backoff)
-            self.stop.wait(backoff)
+            deadline = time.monotonic() + backoff
+            while active() and time.monotonic() < deadline:
+                self.stop.wait(1)
 
-    def set_copilot(self, model: str | None, effort: str | None) -> dict:
-        """Panel choice of model/effort: saved, then the copilot restarts with it."""
+    def set_copilot(
+        self, provider: str | None = None, model: str | None = None, effort: str | None = None,
+        ollama_model: str | None = None,
+    ) -> dict:  # fmt: skip
+        """The panel's choice of copilot, model and effort: saved, then the copilot
+        restarts with it (or the other copilot takes over)."""
         if not self.copilot:
-            raise ValueError("Midas does not manage Claude in this mode")
-        settings = {**self.store.copilot}
-        if model:
-            if model not in CLAUDE_MODELS:
-                raise ValueError(f"model must be one of: {', '.join(CLAUDE_MODELS)}")
-            settings["model"] = model
-        if effort:
-            if effort not in CLAUDE_EFFORTS:
-                raise ValueError(f"effort must be one of: {', '.join(CLAUDE_EFFORTS)}")
-            settings["effort"] = effort
-        if settings != self.store.copilot:
+            raise ValueError("Midas does not manage the copilot in this mode")
+        with self._settings:
+            previous = self.store.copilot
+            settings = {**previous}
+            if provider:
+                if provider not in COPILOT_PROVIDERS:
+                    raise ValueError(f"provider must be one of: {', '.join(COPILOT_PROVIDERS)}")
+                settings["provider"] = provider
+            if model:
+                if model not in CLAUDE_MODELS:
+                    raise ValueError(f"model must be one of: {', '.join(CLAUDE_MODELS)}")
+                settings["model"] = model
+            if effort:
+                if effort not in CLAUDE_EFFORTS:
+                    raise ValueError(f"effort must be one of: {', '.join(CLAUDE_EFFORTS)}")
+                settings["effort"] = effort
+            if ollama_model is not None:
+                settings["ollama_model"] = str(ollama_model).strip()
+            if settings == previous:
+                return settings
             COPILOT_FILE.write_text(json.dumps(settings))
             self.store.update(copilot=settings)
-            if self._claude and self._claude.poll() is None:
-                self._restart_claude.set()
+            log.info("copilot: %s", settings)
+            claude_changed = any(previous.get(key) != settings.get(key) for key in ("provider", "model", "effort"))
+            if claude_changed and self._claude and self._claude.poll() is None:
+                if settings["provider"] == "claude":
+                    self._restart_claude.set()
                 self._claude.terminate()
-        return settings
+            return settings
+
+    def ollama_models(self) -> dict:
+        """The panel's list of local models to pick from."""
+        try:
+            return {"reachable": True, "url": self._ollama.url, "models": self._ollama.models()}
+        except OllamaError as error:
+            return {"reachable": False, "url": self._ollama.url, "models": [], "error": str(error)}
 
     def _audio_status(self, text: str):
         if self._ready.is_set():
