@@ -78,6 +78,8 @@ struct TimelineView: View {
             TranscriptLine(event: event, showTime: !sameMinute)
         case "request":
             RequestMarker(event: event)
+        case "marker":
+            RecordMarker(event: event)
         default:
             AnswerCard(event: event)
         }
@@ -156,6 +158,27 @@ struct RequestMarker: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Brand.blue.opacity(0.15)))
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.top, 4)
+    }
+}
+
+/// Where you went off the record (⌃⌥P) and came back: nothing in between was transcribed.
+struct RecordMarker: View {
+    let event: MidasEvent
+
+    var body: some View {
+        let off = event.text.hasPrefix("Off")
+        HStack(spacing: 6) {
+            Image(systemName: off ? "pause.circle" : "play.circle")
+            Text(off ? "Off the record · not transcribing" : "Back on the record")
+            Text(event.minute).foregroundStyle(.tertiary)
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Color.white.opacity(0.06)))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
     }
 }
 
