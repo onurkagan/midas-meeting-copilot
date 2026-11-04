@@ -7,10 +7,10 @@ import time
 from collections.abc import Callable
 
 from .config import Config
-from .conversation import EMPTY_REQUEST, user_context
+from .conversation import EMPTY_REQUEST, marker_note, user_context
 from .ollama import Ollama, OllamaError
 from .prompt import local_system_prompt
-from .store import ANSWER, REQUEST, TRANSCRIPT, Store
+from .store import ANSWER, MARKER, REQUEST, TRANSCRIPT, Store
 
 log = logging.getLogger("midas.ollama")
 
@@ -47,10 +47,12 @@ def build_messages(events: list[dict], partial: str, auto: bool, context_tokens:
         elif event["kind"] == ANSWER:
             said = " ".join(event["text"].split())
             lines.append(f"[{event['time']}] (Midas suggested to the user: {said})")
+        elif event["kind"] == MARKER:
+            lines.append(marker_note(event))
     budget = max(context_tokens - RESERVED_TOKENS, 1000) * CHARS_PER_TOKEN
     while lines and sum(len(line) + 1 for line in lines) > budget:
         lines.pop(0)
-    if len(lines) < sum(1 for e in events if e["kind"] in (TRANSCRIPT, ANSWER)):
+    if len(lines) < sum(1 for e in events if e["kind"] in (TRANSCRIPT, ANSWER, MARKER)):
         lines.insert(0, "(earlier part of the meeting left out)")
     if partial:
         lines.append(f"[being said right now, unfinished] {partial}")

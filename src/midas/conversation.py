@@ -2,8 +2,16 @@
 and the local Ollama copilot."""
 
 from .config import CONTEXT_FILE, ROOT
+from .store import OFF_THE_RECORD
 
 EMPTY_REQUEST = "(pressed Answer: draft a reply to the latest question or topic now)"
+
+
+def marker_note(event: dict) -> str:
+    """Where the user went off the record, so a model doesn't mistake the gap for silence."""
+    if event["text"] == OFF_THE_RECORD:
+        return f"[{event['time']}] (the user went off the record: nothing said until they resumed was transcribed)"
+    return f"[{event['time']}] (back on the record)"
 
 
 def format_events(events: list[dict], partial: str = "", live: bool = True) -> str:
@@ -12,6 +20,8 @@ def format_events(events: list[dict], partial: str = "", live: bool = True) -> s
     for event in events:
         if event["kind"] == "transcript":
             lines.append(f"[{event['time']}] {event['text']}")
+        elif event["kind"] == "marker":
+            lines.append(marker_note(event))
         elif not live:
             lines.append(f"[{event['time']}] (earlier request, already answered: {event['text'] or 'Answer'})")
     if partial:
