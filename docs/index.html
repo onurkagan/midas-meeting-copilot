@@ -353,7 +353,8 @@
   .install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
   @media (max-width: 920px) { .install-grid { grid-template-columns: 1fr; } }
   .code { border-radius: var(--radius); background: #030817; border: 1px solid var(--border); overflow: hidden; }
-  .code pre { margin: 0; padding: 22px 24px; overflow-x: auto; font-size: 15px; line-height: 1.75; color: #dbe6ff; }
+  .code pre { margin: 0; padding: 22px 24px; overflow-x: auto; font-size: 15px; line-height: 1.75; color: #dbe6ff; white-space: pre-wrap; word-break: break-all; }
+  .code-links { margin: 14px 0 0; font-size: 14px; color: var(--dim); }
   .code .prompt { color: var(--dim); user-select: none; }
   .code-bar {
     display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 20px;
@@ -573,21 +574,21 @@
         <div class="section-head">
           <span class="kicker">Get started</span>
           <h2 id="install-title">Install Midas in a few minutes</h2>
-          <p>Setup builds the Swift parts, downloads the Whisper model (~1.6&nbsp;GB) and installs Midas.app in your Applications folder.</p>
+          <p>One command sets up what's missing, downloads the Whisper model (~1.6&nbsp;GB) and installs Midas.app in your Applications folder.</p>
         </div>
         <ul class="reqs">
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>Apple Silicon Mac</b> (M1 or later)</span></li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>macOS 14.4</b> or later</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>Xcode command line tools</b> and <b>Python 3.11+</b></span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b><a href="https://docs.claude.com/claude-code">Claude Code</a></b>, signed in to your Claude account</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>A Claude account</b>; the installer sets up <a href="https://docs.claude.com/claude-code">Claude Code</a>, Python and the Xcode tools</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span><b>About 6&nbsp;GB</b> of free disk space</span></li>
         </ul>
       </div>
-      <div class="code">
-        <div class="code-bar"><span>Terminal</span><button class="copy" type="button" data-copy="install-cmd">Copy</button></div>
-<pre id="install-cmd"><code><span class="prompt">$ </span>git clone https://github.com/onurkagan/midas-meeting-copilot.git
-<span class="prompt">$ </span>cd midas-meeting-copilot
-<span class="prompt">$ </span>./midas setup
-<span class="prompt">$ </span>./midas install</code></pre>
+      <div>
+        <div class="code">
+          <div class="code-bar"><span>Paste into Terminal</span><button class="copy" type="button" data-copy="install-cmd">Copy</button></div>
+<pre id="install-cmd"><code>curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/main/install.sh | bash</code></pre>
+        </div>
+        <p class="code-links">Run it again to update. <a href="https://github.com/onurkagan/midas-meeting-copilot/blob/main/install.sh">Read the installer</a> · <a href="https://github.com/onurkagan/midas-meeting-copilot#quick-start">Manual setup</a></p>
       </div>
     </div>
   </section>

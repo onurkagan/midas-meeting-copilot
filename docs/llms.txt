@@ -5,6 +5,7 @@
 Key facts:
 
 - Platform: Apple Silicon Mac, macOS 14.4 or later. Not available for Intel Macs, Windows or Linux.
+- Install: `curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/main/install.sh | bash` sets up Xcode tools, Python and Claude Code if missing, builds Midas and installs Midas.app. Running it again updates Midas.
 - Audio capture: Core Audio process tap; no meeting bot, no virtual audio driver. Only system audio, not the microphone.
 - Transcription: local Whisper large-v3-turbo via mlx-whisper; Turkish and English by default, configurable.
 - AI: Claude through Claude Code, connected with an MCP server (tools: wait_for_conversation, show_answer, get_transcript, midas_status). Model (Opus, Sonnet, Haiku) and effort are chosen in the panel.
