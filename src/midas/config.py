@@ -56,6 +56,16 @@ class Config:
     ollama_context: int = 8192
     # How long Ollama keeps the model loaded between answers.
     ollama_keep_alive: str = "30m"
+    # Privacy. At the start of each meeting the panel reminds you to tell the others that
+    # you're transcribing, with a message to paste into the chat.
+    consent_reminder: bool = True
+    # Your own wording for that message; empty uses Midas's (English, plus Turkish if you
+    # transcribe Turkish).
+    notice_message: str = ""
+    # Only local models (Ollama) may answer; Claude can't read the meeting.
+    local_only: bool = False
+    # Delete meeting logs in sessions/ older than this many days when Midas starts; 0 keeps them.
+    keep_sessions_days: int = 0
 
     @property
     def base_url(self) -> str:
