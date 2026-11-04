@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Midas: Open-source AI Meeting Copilot for Mac</title>
-<meta name="description" content="Free, open-source AI meeting copilot for Mac: on-device transcription of Zoom, Meet and Teams, and Claude's answers in a panel hidden from screen sharing.">
+<meta name="description" content="Free, open-source AI meeting copilot for Mac: on-device transcription of Zoom, Meet and Teams, with answers from Claude or local Ollama models, hidden from screen sharing.">
 <link rel="canonical" href="https://onurkagan.github.io/midas-meeting-copilot/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="google-site-verification" content="TXppRP4SzJxprxT8W4oUnog23k8IcfANJQHRoorpZ-c">
@@ -52,7 +52,7 @@
         "Midas meeting copilot",
         "Midas AI meeting assistant"
       ],
-      "description": "Free, open-source AI meeting copilot for macOS. It transcribes Zoom, Google Meet and Microsoft Teams calls on device with Whisper, and Claude Code drafts answers in a panel that is hidden from screen sharing. No bot joins the call.",
+      "description": "Free, open-source AI meeting copilot for macOS. It transcribes Zoom, Google Meet and Microsoft Teams calls on device with Whisper, and Claude Code or a local Ollama model drafts answers in a panel that is hidden from screen sharing. No bot joins the call.",
       "url": "https://onurkagan.github.io/midas-meeting-copilot/",
       "downloadUrl": "https://github.com/onurkagan/midas-meeting-copilot",
       "applicationCategory": "BusinessApplication",
@@ -60,7 +60,7 @@
       "operatingSystem": "macOS 14.4 or later",
       "processorRequirements": "Apple Silicon (arm64)",
       "softwareVersion": "0.1.0",
-      "softwareRequirements": "Claude Code, Python 3.11 or later, Xcode command line tools",
+      "softwareRequirements": "Claude Code or Ollama, Python 3.11 or later, Xcode command line tools",
       "license": "https://opensource.org/licenses/MIT",
       "isAccessibleForFree": true,
       "offers": {
@@ -79,6 +79,7 @@
         "No meeting bot and no virtual audio driver (Core Audio process tap)",
         "Answer panel hidden from screen sharing",
         "On-demand answers and meeting summaries from Claude via Claude Code and MCP",
+        "Fully local answers from Ollama models, streamed as they are written",
         "Choice of Claude model and effort",
         "Meeting notes saved as Markdown"
       ],
@@ -133,7 +134,15 @@
           "name": "Does Midas record my meetings or upload audio?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally, and text is sent to Claude only when you press Answer or Summary (or continuously if you turn on automatic answers)."
+            "text": "No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally, and text is sent to Claude only when you press Answer or Summary (or continuously if you turn on automatic answers). With a local Ollama model, no text leaves your Mac either."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use Midas without Claude, fully offline?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Install Ollama, pull a model (for example ollama pull llama3.2), and choose Ollama in the panel's settings. Transcription and answers then both run on your Mac."
           }
         },
         {
@@ -422,7 +431,7 @@
       <div>
         <span class="eyebrow">Free &amp; open source · MIT</span>
         <h1 id="title">The open-source <span>AI meeting copilot</span> for Mac</h1>
-        <p class="lede">Midas transcribes <strong>Zoom, Google Meet and Microsoft Teams</strong> on your Mac with local Whisper, and Claude drafts what to say next in a panel <strong>screen sharing can't see</strong>. No bot joins the call.</p>
+        <p class="lede">Midas transcribes <strong>Zoom, Google Meet and Microsoft Teams</strong> on your Mac with local Whisper, and Claude, or a local model in Ollama, drafts what to say next in a panel <strong>screen sharing can't see</strong>. No bot joins the call.</p>
         <div class="cta">
           <a class="btn btn-primary" href="https://github.com/onurkagan/midas-meeting-copilot">
             <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -430,7 +439,7 @@
           </a>
           <a class="btn btn-ghost" href="#how-it-works">See how it works</a>
         </div>
-        <p class="meta">Apple Silicon · macOS 14.4 or later · Powered by Claude Code and MCP</p>
+        <p class="meta">Apple Silicon · macOS 14.4 or later · Claude Code over MCP, or local models with Ollama</p>
       </div>
       <div class="shot">
         <div class="frame">
@@ -481,9 +490,9 @@
           <p>Press Answer (⌃⌥A) and Claude replies to the latest question in seconds. Summary lists the decisions and action items so far.</p>
         </article>
         <article class="card">
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></div>
-          <h3>One timeline</h3>
-          <p>What was said, where you asked, and Claude's reply, in a single scroll, with the sentence being spoken shown live.</p>
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M8 10.5l2.5 2.5L16 8"/></svg></div>
+          <h3>Fully local with Ollama</h3>
+          <p>Prefer nothing to leave your Mac? Pick any model you've pulled into Ollama. Answers stream in as it writes, no Claude account needed.</p>
         </article>
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></div>
@@ -492,7 +501,8 @@
         </article>
       </div>
       <div class="also" aria-label="More features">
-        <span class="pill">Opus, Sonnet or Haiku</span>
+        <span class="pill">Claude Opus, Sonnet or Haiku</span>
+        <span class="pill">One timeline</span>
         <span class="pill">Turkish, English and more</span>
         <span class="pill">Meeting notes in Markdown</span>
         <span class="pill">Answers from your codebase</span>
@@ -560,6 +570,7 @@
             <tr><th scope="row">Where audio is transcribed</th><td class="us">On your Mac</td><td>Vendor's cloud</td><td>Vendor's cloud</td></tr>
             <tr><th scope="row">Live answers during the call</th><td class="us">Yes, on demand</td><td>Some</td><td>Some</td></tr>
             <tr><th scope="row">Panel hidden from screen sharing</th><td class="us">Yes</td><td>—</td><td>—</td></tr>
+            <tr><th scope="row">Works fully offline</th><td class="us">Yes, with Ollama</td><td>No</td><td>No</td></tr>
             <tr><th scope="row">Open source, self-hosted</th><td class="us">Yes (MIT)</td><td>Usually not</td><td>Usually not</td></tr>
           </tbody>
         </table>
@@ -606,7 +617,11 @@
         </details>
         <details>
           <summary>Does Midas record my meetings or upload audio?</summary>
-          <p>No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally, and text is sent to Claude only when you press Answer or Summary (or continuously if you turn on automatic answers).</p>
+          <p>No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally, and text is sent to Claude only when you press Answer or Summary (or continuously if you turn on automatic answers). With a local Ollama model, no text leaves your Mac either.</p>
+        </details>
+        <details>
+          <summary>Can I use Midas without Claude, fully offline?</summary>
+          <p>Yes. Install <a href="https://ollama.com">Ollama</a>, pull a model (for example <code>ollama pull llama3.2</code>), and choose Ollama in the panel's settings. Transcription and answers then both run on your Mac.</p>
         </details>
         <details>
           <summary>Which languages does it understand?</summary>
