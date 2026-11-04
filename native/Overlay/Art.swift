@@ -1,13 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Calm, trustworthy blues used across the panel, matched to the app icon.
-enum Brand {
-    static let blue = Color(red: 0.23, green: 0.51, blue: 0.96)
-    static let deepBlue = Color(red: 0.12, green: 0.36, blue: 0.86)
-    static let lightBlue = Color(red: 0.62, green: 0.80, blue: 1.0)
-}
-
 /// King Midas's donkey ears rising from his crown. The app icon (assets/icon/Midas.svg)
 /// renders this mark in fur and platinum; here it is a monochrome template glyph for the
 /// menu bar and the panel, built from the same curves.
