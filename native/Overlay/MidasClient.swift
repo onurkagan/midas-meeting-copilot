@@ -6,9 +6,10 @@ import Combine
 struct MidasEvent: Decodable, Identifiable, Equatable {
     let id: Int
     let time: String
-    let kind: String  // "transcript", "request" or "answer"
+    let kind: String  // "transcript", "request", "answer" or "marker" (off the record and back)
     let text: String
     let title: String
+    var ts: Double? = nil  // Unix time
 
     /// "HH:MM", for the timeline.
     var minute: String { String(time.prefix(5)) }
@@ -43,6 +44,14 @@ struct OllamaCatalog: Decodable {
     var error: String? = nil
 }
 
+/// What the panel shows about privacy: the reminder to tell the others, and where answers go.
+struct PrivacySettings: Decodable {
+    let reminder: Bool
+    let notices: [String: String]  // "en", "tr", or "custom": the message to paste into the chat
+    let local_only: Bool
+    let auto_answer: Bool
+}
+
 struct Snapshot: Decodable {
     let status: String
     let paused: Bool
@@ -55,6 +64,7 @@ struct Snapshot: Decodable {
     let count: Int
     let events: [MidasEvent]
     var draft: String? = nil  // the answer as a streaming copilot (Ollama) writes it
+    var privacy: PrivacySettings? = nil
 }
 
 final class MidasClient: ObservableObject {
@@ -65,6 +75,9 @@ final class MidasClient: ObservableObject {
     /// Local models to choose from, fetched when the Ollama settings are shown.
     @Published var ollama: OllamaCatalog?
     @Published private(set) var refreshingOllama = false
+    /// Time to remind the user to tell the others: when Midas starts, and when speech
+    /// returns after a long quiet spell (a new meeting).
+    @Published private(set) var noticeDue = false
     private let base: URL
     private var timer: Timer?
     private var inFlight = false
@@ -102,15 +115,42 @@ final class MidasClient: ObservableObject {
     }
 
     func apply(_ snapshot: Snapshot, since: Int) {
+        let reminder = snapshot.privacy?.reminder == true
         if snapshot.session != self.snapshot?.session {
             // A (re)started daemon numbers its events from 1 again: start over.
             events = since == 0 ? snapshot.events : []
+            noticeDue = reminder
         } else {
             let last = events.last?.id ?? 0
-            events += snapshot.events.filter { $0.id > last }
+            let fresh = snapshot.events.filter { $0.id > last }
+            if reminder, startsMeeting(fresh, session: snapshot.session) { noticeDue = true }
+            events += fresh
         }
         self.snapshot = snapshot
         connected = true
+    }
+
+    /// Speech after 15 quiet minutes is most likely another meeting.
+    private func startsMeeting(_ fresh: [MidasEvent], session: Double) -> Bool {
+        guard let first = fresh.first(where: { $0.kind == "transcript" })?.ts else { return false }
+        let previous = events.last(where: { $0.kind == "transcript" })?.ts ?? session
+        return first - previous >= 15 * 60
+    }
+
+    func dismissNotice() { noticeDue = false }
+
+    /// Where answers are worked out, for the line under the Answer button.
+    var destination: (symbol: String, text: String, local: Bool) {
+        let privacy = snapshot?.privacy
+        if let copilot = snapshot?.copilot, copilot.isOllama {
+            let model = copilot.ollama_model.map { $0.isEmpty ? "" : " · \($0)" } ?? ""
+            let lock = privacy?.local_only == true ? "Local only" : "Stays on this Mac"
+            return ("lock.fill", "\(lock) · Ollama\(model)", true)
+        }
+        if privacy?.auto_answer == true {
+            return ("arrow.up.forward", "Claude reads the meeting as it happens (auto answer)", false)
+        }
+        return ("arrow.up.forward", "Sent to Claude only when you ask", false)
     }
 
     private func post(_ path: String, _ body: [String: Any]) {
