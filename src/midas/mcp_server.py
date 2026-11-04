@@ -6,7 +6,8 @@ import os
 import httpx
 from mcp.server import MCPServer
 
-from .config import CONTEXT_FILE, load_config
+from . import meetings
+from .config import CONTEXT_FILE, SESSIONS_DIR, load_config
 from .conversation import format_events, user_context
 from .prompt import copilot_prompt
 
@@ -143,6 +144,37 @@ async def midas_status() -> str:
         f"Session log: {health['session_file']}\n\n"
         f"The user's context notes ({CONTEXT_FILE.name}):\n{user_context()}"
     )
+
+
+@mcp.tool()
+async def list_meetings(limit: int = 10) -> str:
+    """Lists the latest saved meetings (newest first) with their names, titles and counts.
+
+    A meeting's name is its date and start time, such as 2026-11-05_10-00.
+    """
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
+    return meetings.listing(SESSIONS_DIR, max(1, min(limit, 100)))
+
+
+@mcp.tool()
+async def search_meetings(query: str, limit: int = 20) -> str:
+    """Searches past meetings for a word or phrase: their decisions, action items, open
+    questions, the questions put to the user and what was said. Newest meetings first.
+    """
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
+    return meetings.search(SESSIONS_DIR, query, max(1, min(limit, 100)))
+
+
+@mcp.tool()
+async def get_meeting(name: str = "latest") -> str:
+    """Returns one meeting: its map (decisions, action items, questions and answers) and its
+    log. name: like 2026-11-05_10-00 (see list_meetings), or "latest".
+    """
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
+    return meetings.meeting(SESSIONS_DIR, name.strip())
 
 
 @mcp.prompt(name="copilot", description="Starts the Midas meeting copilot loop")
