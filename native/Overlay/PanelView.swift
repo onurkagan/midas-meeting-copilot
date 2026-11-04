@@ -1,11 +1,15 @@
 import AppKit
 import SwiftUI
 
+/// The panel's corner radius, shared with the window's glass so the rim follows it.
+let panelRadius: CGFloat = 18
+
 /// The panel: a slim header, the meeting timeline, and the Answer button.
 struct OverlayView: View {
     @ObservedObject var client: MidasClient
     let root: String?
     let hide: () -> Void
+    @Environment(\.tide) private var tide
     @State private var question = ""
     @State private var showSettings: Bool
 
@@ -19,32 +23,35 @@ struct OverlayView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
             if showSettings {
                 SettingsDrawer(client: client, root: root)
                     .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
             }
-            Divider().opacity(0.3)
             if client.noticeDue, let notices = client.snapshot?.privacy?.notices, !notices.isEmpty {
                 ConsentBanner(notices: notices, dismiss: client.dismissNotice)
                     .padding(.horizontal, 12)
-                    .padding(.top, 10)
+                    .padding(.bottom, 6)
             }
             TimelineView(client: client)
-            Divider().opacity(0.3)
+            Rectangle().fill(tide.divider).frame(height: 1)
             composer.padding(12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .tint(Brand.blue)
+        .font(Tide.font(13))
+        .foregroundStyle(tide.ink)
+        .background(tide.glass)
+        .overlay(RoundedRectangle(cornerRadius: panelRadius).strokeBorder(tide.rim, lineWidth: 1))
+        .tint(tide.accent)
     }
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(nsImage: EarsArt.glyph(size: 22)).renderingMode(.template).foregroundStyle(Brand.blue)
-            Text("Midas").font(.system(size: 13, weight: .bold))
+            MidasMark(size: 24)
+            Text("Midas").font(Tide.font(15, .heavy))
             StatusPill(client: client)
             Spacer(minLength: 4)
             HeaderButton(
@@ -53,8 +60,8 @@ struct OverlayView: View {
                     ? "Back on the record: transcribe again (⌃⌥P)"
                     : "Go off the record: stop transcribing until you resume (⌃⌥P)",
                 action: client.togglePause)
-            HeaderButton(symbol: "eye.slash", help: "Hide (⌃⌥M)", action: hide)
-            HeaderButton(symbol: "gearshape", help: "Settings", active: showSettings) {
+            HeaderButton(symbol: "minus", help: "Hide the panel (⌃⌥M)", action: hide)
+            HeaderButton(symbol: "slider.horizontal.3", help: "Settings", active: showSettings) {
                 withAnimation(.easeOut(duration: 0.15)) { showSettings.toggle() }
             }
         }
@@ -65,20 +72,20 @@ struct OverlayView: View {
             HStack(spacing: 6) {
                 TextField("Ask \(client.copilotName) anything…", text: $question)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12.5))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.07)))
-                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.white.opacity(0.12)))
+                    .font(Tide.font(12.5))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(tide.field))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tide.fieldStroke))
                     .onSubmit {
                         // Enter on an empty field is the same as pressing Answer.
                         client.ask(question.trimmingCharacters(in: .whitespacesAndNewlines))
                         question = ""
                     }
                 Button(action: client.summarize) {
-                    Label("Summary", systemImage: "list.bullet")
+                    Label("Summary", systemImage: "list.bullet").font(Tide.font(12.5, .semibold))
                 }
-                .controlSize(.large)
+                .buttonStyle(SecondaryButtonStyle())
                 .disabled(!client.connected || client.pending)
                 .help("Summarize the meeting so far and list the action items")
             }
@@ -87,12 +94,12 @@ struct OverlayView: View {
             } label: {
                 HStack(spacing: 8) {
                     if client.pending {
-                        ProgressView().controlSize(.small)
+                        ProgressView().controlSize(.small).tint(.white)
                     } else {
                         Image(systemName: "sparkles")
                     }
-                    Text(client.pending ? "Drafting…" : "Answer").font(.system(size: 14, weight: .semibold))
-                    Text("⌃⌥A").font(.system(size: 11)).opacity(0.65)
+                    Text(client.pending ? "Drafting…" : "Answer").font(Tide.font(14.5, .bold))
+                    Text("⌃⌥A").font(Tide.font(11, .medium)).opacity(0.75)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -102,31 +109,81 @@ struct OverlayView: View {
             if client.connected {
                 let destination = client.destination
                 Label(destination.text, systemImage: destination.symbol)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(destination.local ? Brand.lightBlue.opacity(0.8) : Color.secondary)
+                    .font(Tide.font(10.5, .medium))
+                    .foregroundStyle(destination.local ? tide.foamText : tide.muted)
                     .lineLimit(1)
                     .help(destination.local
                         ? "A local model answers: the meeting never leaves this Mac."
-                        : "Answers come from Claude: what was said goes to Anthropic under your Claude account. Choose Ollama in ⚙︎ to keep it on this Mac.")
+                        : "Answers come from Claude: what was said goes to Anthropic under your Claude account. Choose Ollama in Settings to keep it on this Mac.")
             }
         }
     }
 }
 
-/// Always blue: AppKit greys out prominent buttons in windows that aren't key, and this
+/// The ears and crown on a tile of sea blue to seafoam. (The app icon will follow.)
+struct MidasMark: View {
+    let size: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.3)
+            .fill(LinearGradient(colors: [Color(hex: 0x1F6FB8), Color(hex: 0x3BB3A6)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: size, height: size)
+            .overlay(
+                Image(nsImage: EarsArt.glyph(size: size * 0.78)).renderingMode(.template).foregroundStyle(.white))
+            .accessibilityHidden(true)
+    }
+}
+
+/// Always Tide blue: AppKit greys out prominent buttons in windows that aren't key, and this
 /// panel deliberately never takes focus from the meeting app.
 private struct PrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.tide) private var tide
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(.white)
-            .padding(.vertical, 9)
+            .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(Brand.deepBlue.opacity(configuration.isPressed ? 0.75 : 1)))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.white.opacity(0.12)))
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(tide.accent.opacity(configuration.isPressed ? 0.8 : 1))
+                    .shadow(color: tide.accent.opacity(isEnabled ? 0.32 : 0), radius: 10, y: 5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(LinearGradient(colors: [Color.white.opacity(0.28), .clear], startPoint: .top, endPoint: .center)))
             .opacity(isEnabled ? 1 : 0.55)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Small rounded choices, such as the reminder's copy buttons.
+private struct PillButtonStyle: ButtonStyle {
+    @Environment(\.tide) private var tide
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(tide.accentText)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(tide.field.opacity(configuration.isPressed ? 0.6 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(tide.cardStroke))
+            .contentShape(Rectangle())
+    }
+}
+
+/// Summary and similar: glass with a thin rim.
+private struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.tide) private var tide
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(tide.fieldText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12).fill(tide.field.opacity(configuration.isPressed ? 0.6 : 1)))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tide.fieldStroke))
+            .opacity(isEnabled ? 1 : 0.5)
             .contentShape(Rectangle())
     }
 }
@@ -136,52 +193,62 @@ private struct HeaderButton: View {
     let help: String
     var active = false
     let action: () -> Void
+    @Environment(\.tide) private var tide
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 24, height: 22)
-                .background(RoundedRectangle(cornerRadius: 6).fill(active ? Brand.blue.opacity(0.25) : .clear))
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 26, height: 24)
+                .background(RoundedRectangle(cornerRadius: 8).fill(active ? tide.accent.opacity(0.15) : .clear))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(active ? Brand.lightBlue : Color.secondary)
+        .foregroundStyle(active ? tide.accentText : tide.muted)
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 
-/// One glance tells whether Midas is listening and Claude is ready.
+/// One glance tells whether Midas is listening and the copilot is ready.
 private struct StatusPill: View {
     @ObservedObject var client: MidasClient
+    @Environment(\.tide) private var tide
+
+    private enum Mood { case listening, quiet, warning }
 
     var body: some View {
-        let (text, color, live) = state
+        let (text, mood, live) = state
+        let (dot, ink, fill): (Color, Color, Color) = switch mood {
+        case .listening: (tide.foam, tide.foamText, tide.foamFill)
+        case .quiet: (tide.faint, tide.quietText, tide.quiet)
+        case .warning: (.orange, tide.quietText, Color.orange.opacity(0.14))
+        }
         HStack(spacing: 6) {
             if live {
-                PulsingDot(color: color)
+                PulsingDot(color: dot)
             } else {
-                Circle().fill(color).frame(width: 7, height: 7)
+                Circle().fill(dot).frame(width: 7, height: 7)
             }
-            Text(text).font(.system(size: 11, weight: .medium)).lineLimit(1)
+            Text(text).font(Tide.font(11, .semibold)).lineLimit(1)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(color.opacity(0.16)))
-        .foregroundStyle(.secondary)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(fill))
+        .foregroundStyle(ink)
         .help(client.statusLine)
     }
 
-    private var state: (String, Color, Bool) {
-        guard client.connected, let snapshot = client.snapshot else { return ("Offline", .red, false) }
+    private var state: (String, Mood, Bool) {
+        guard client.connected, let snapshot = client.snapshot else { return ("Offline", .warning, false) }
         let copilot = "\(client.copilotName) \(snapshot.claude)"
-        if snapshot.paused { return ("Off the record · \(copilot)", .gray, false) }
-        if snapshot.status == "listening" { return ("Listening · \(copilot)", Brand.blue, snapshot.speaking) }
-        if snapshot.status.hasPrefix("listening") { return ("No sound · \(copilot)", .gray, false) }
+        if snapshot.paused { return ("Off the record · \(copilot)", .quiet, false) }
+        if snapshot.status == "listening" { return ("Listening · \(copilot)", .listening, snapshot.speaking) }
+        if snapshot.status.hasPrefix("listening") { return ("No sound · \(copilot)", .quiet, false) }
         if snapshot.status.contains("error") || snapshot.status.contains("not found") {
-            return (snapshot.status, .orange, false)
+            return (snapshot.status, .warning, false)
         }
-        return (snapshot.status.prefix(1).uppercased() + snapshot.status.dropFirst(), .gray, false)
+        return (snapshot.status.prefix(1).uppercased() + snapshot.status.dropFirst(), .quiet, false)
     }
 }
 
@@ -189,27 +256,28 @@ private struct StatusPill: View {
 private struct SettingsDrawer: View {
     @ObservedObject var client: MidasClient
     let root: String?
+    @Environment(\.tide) private var tide
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 9) {
             if let copilot = client.snapshot?.copilot {
                 // Segmented controls and an inline list on purpose: pop-up menus open in
                 // separate windows that screen sharing would capture.
                 if client.snapshot?.privacy?.local_only == true {
-                    row("Copilot") { Text("Ollama · local only").foregroundStyle(.secondary) }
+                    row("Copilot") { Text("Ollama · local only").foregroundStyle(tide.muted) }
                 } else {
-                row("Copilot") {
-                    Picker("Copilot", selection: Binding(
-                        get: { copilot.isOllama ? "ollama" : "claude" },
-                        set: { provider in
-                            client.setCopilot(provider: provider)
-                            if provider == "ollama" { client.refreshOllama() }
-                        })
-                    ) {
-                        Text("Claude").tag("claude")
-                        Text("Ollama · local").tag("ollama")
+                    row("Copilot") {
+                        Picker("Copilot", selection: Binding(
+                            get: { copilot.isOllama ? "ollama" : "claude" },
+                            set: { provider in
+                                client.setCopilot(provider: provider)
+                                if provider == "ollama" { client.refreshOllama() }
+                            })
+                        ) {
+                            Text("Claude").tag("claude")
+                            Text("Ollama · local").tag("ollama")
+                        }
                     }
-                }
                 }
                 if copilot.isOllama {
                     OllamaModels(client: client, selected: copilot.ollama_model ?? "")
@@ -234,11 +302,13 @@ private struct SettingsDrawer: View {
                     }
                     note("Claude restarts with the new setting (~10 s). A stronger model and higher effort give better but slower replies and use more of your limit.")
                 }
-                Divider().opacity(0.3)
+                Rectangle().fill(tide.divider).frame(height: 1)
             }
-            Text("⌃⌥A  Answer    ⌃⌥M  Show / hide    ⌃⌥P  Off the record")
-                .font(.system(size: 10.5, design: .monospaced))
-                .foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                shortcut("⌃⌥A", "Answer")
+                shortcut("⌃⌥M", "Show / hide")
+                shortcut("⌃⌥P", "Off the record")
+            }
             HStack {
                 if let root {
                     Button {
@@ -246,19 +316,22 @@ private struct SettingsDrawer: View {
                     } label: {
                         Label("Open folder", systemImage: "folder")
                     }
+                    .buttonStyle(SecondaryButtonStyle())
                     .help("context.md, config.toml and meeting logs")
                 }
                 Spacer()
                 Button(action: client.quit) {
                     Label("Quit Midas", systemImage: "power")
                 }
+                .buttonStyle(SecondaryButtonStyle())
             }
         }
         .pickerStyle(.segmented)
         .controlSize(.small)
-        .font(.system(size: 11))
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+        .font(Tide.font(11.5, .medium))
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14).fill(tide.card))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(tide.cardStroke))
         .onAppear {
             if client.snapshot?.copilot?.isOllama == true { client.refreshOllama() }
         }
@@ -266,15 +339,22 @@ private struct SettingsDrawer: View {
 
     private func row(_ label: String, @ViewBuilder control: () -> some View) -> some View {
         HStack {
-            Text(label).frame(width: 46, alignment: .leading)
+            Text(label).frame(width: 50, alignment: .leading)
             control().labelsHidden()
+        }
+    }
+
+    private func shortcut(_ keys: String, _ action: String) -> some View {
+        HStack(spacing: 5) {
+            Text(keys).font(Tide.font(10.5, .bold)).foregroundStyle(tide.accentText)
+            Text(action).font(Tide.font(10.5)).foregroundStyle(tide.muted)
         }
     }
 
     private func note(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 10.5))
-            .foregroundStyle(.tertiary)
+            .font(Tide.font(10.5))
+            .foregroundStyle(tide.muted)
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -284,6 +364,7 @@ private struct SettingsDrawer: View {
 private struct OllamaModels: View {
     @ObservedObject var client: MidasClient
     let selected: String
+    @Environment(\.tide) private var tide
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -294,14 +375,16 @@ private struct OllamaModels: View {
                     Image(systemName: "arrow.clockwise").font(.system(size: 10, weight: .semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(tide.muted)
                 .disabled(client.refreshingOllama)
                 .help("Refresh the list of models")
+                .accessibilityLabel("Refresh the list of models")
             }
             if let catalog = client.ollama {
                 if !catalog.reachable {
                     notice("Ollama isn't running. Open the Ollama app, then refresh.") {
                         Button("Get Ollama") { NSWorkspace.shared.open(URL(string: "https://ollama.com/download")!) }
+                            .buttonStyle(SecondaryButtonStyle())
                     }
                 } else if catalog.models.isEmpty {
                     notice("No models yet. Pull one in Terminal, then refresh:") {
@@ -313,12 +396,12 @@ private struct OllamaModels: View {
                             ForEach(catalog.models) { model in modelRow(model) }
                         }
                     }
-                    .frame(height: min(CGFloat(catalog.models.count) * 27 - 3, 118))
+                    .frame(height: min(CGFloat(catalog.models.count) * 29 - 3, 124))
                 }
             } else {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.mini)
-                    Text("Looking for Ollama…").foregroundStyle(.secondary)
+                    Text("Looking for Ollama…").foregroundStyle(tide.muted)
                 }
             }
         }
@@ -331,17 +414,17 @@ private struct OllamaModels: View {
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Brand.blue : Color.secondary)
+                    .foregroundStyle(isSelected ? tide.accent : tide.muted)
                 Text(model.name)
-                    .font(.system(size: 11.5, weight: isSelected ? .semibold : .regular))
+                    .font(Tide.font(11.5, isSelected ? .bold : .regular))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 6)
-                Text(model.detail).font(.system(size: 10.5)).foregroundStyle(.tertiary)
+                Text(model.detail).font(Tide.font(10.5)).foregroundStyle(tide.muted)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(isSelected ? Brand.blue.opacity(0.2) : Color.white.opacity(0.04)))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 9).fill(isSelected ? tide.accent.opacity(0.14) : tide.field))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -349,12 +432,12 @@ private struct OllamaModels: View {
 
     private func notice(_ text: String, @ViewBuilder action: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(text).foregroundStyle(tide.muted).fixedSize(horizontal: false, vertical: true)
             action()
         }
-        .padding(8)
+        .padding(9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 9).fill(tide.field))
     }
 }
 
@@ -363,6 +446,7 @@ private struct OllamaModels: View {
 private struct ConsentBanner: View {
     let notices: [String: String]
     let dismiss: () -> Void
+    @Environment(\.tide) private var tide
     @State private var copied: String?
 
     private var languages: [(key: String, label: String)] {
@@ -370,23 +454,23 @@ private struct ConsentBanner: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "person.wave.2")
-                Text("Let the others know you're transcribing").font(.system(size: 12, weight: .semibold))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Image(systemName: "water.waves")
+                Text("Let the others know you're transcribing").font(Tide.font(12.5, .bold))
                 Spacer(minLength: 4)
                 Button(action: dismiss) {
                     Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(tide.muted)
                 .help("Done")
                 .accessibilityLabel("Dismiss the reminder")
             }
-            .foregroundStyle(Brand.lightBlue)
-            Text("Paste this into the meeting chat, or say it out loud. Some places require everyone's consent.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            .foregroundStyle(tide.accentText)
+            Text("A short, friendly note for the chat. Some places need everyone's OK.")
+                .font(Tide.font(11.5))
+                .foregroundStyle(tide.muted)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
                 ForEach(languages, id: \.key) { language in
@@ -396,25 +480,28 @@ private struct ConsentBanner: View {
                         copied = language.key
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
                     } label: {
-                        Label(copied == language.key ? "Copied" : "Copy · \(language.label)",
-                              systemImage: copied == language.key ? "checkmark" : "doc.on.doc")
+                        HStack(spacing: 5) {
+                            Image(systemName: copied == language.key ? "checkmark" : "doc.on.doc")
+                            Text(copied == language.key ? "Copied" : "Copy · \(language.label)")
+                        }
+                        .font(Tide.font(11.5, .semibold))
                     }
+                    .buttonStyle(PillButtonStyle())
                     .help(notices[language.key] ?? "")
                 }
             }
-            .controlSize(.small)
-            .font(.system(size: 11))
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Brand.blue.opacity(0.12)))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Brand.blue.opacity(0.35), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 16).fill(tide.card))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(tide.cardStroke))
     }
 }
 
 /// A Terminal command with a copy button.
 private struct CopyCommand: View {
     let command: String
+    @Environment(\.tide) private var tide
     @State private var copied = false
 
     var body: some View {
@@ -429,8 +516,9 @@ private struct CopyCommand: View {
                 Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 10))
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(tide.muted)
             .help("Copy")
+            .accessibilityLabel("Copy the command")
         }
     }
 }

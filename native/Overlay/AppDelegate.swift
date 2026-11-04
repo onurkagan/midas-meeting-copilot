@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        TideFont.register()
         if launchesDaemon, let root {
             startDaemonIfNeeded(root: root)
             watchDaemon(root: root)
@@ -48,22 +49,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.minSize = NSSize(width: 340, height: 400)
-        // Always dark: the HUD material is dark, and light-mode text would vanish on it.
-        panel.appearance = NSAppearance(named: .darkAqua)
+        // Follows the Mac's appearance: Tide by day, Tide at night in dark mode.
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             panel.standardWindowButton(button)?.isHidden = true
         }
 
         let background = NSVisualEffectView()
-        background.material = .hudWindow
+        background.material = .popover
         background.blendingMode = .behindWindow
         background.state = .active
         background.wantsLayer = true
-        background.layer?.cornerRadius = 12
+        background.layer?.cornerRadius = panelRadius
         background.layer?.masksToBounds = true
 
         let hosting = NSHostingView(
-            rootView: OverlayView(client: client, root: root, hide: { [weak self] in self?.toggle() }))
+            rootView: OverlayView(client: client, root: root, hide: { [weak self] in self?.toggle() }).modifier(TideTheme()))
         hosting.sizingOptions = []
         hosting.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(hosting)
