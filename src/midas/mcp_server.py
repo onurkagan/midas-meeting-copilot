@@ -48,6 +48,12 @@ DOWN_MESSAGE = (
 )
 
 
+LOCAL_ONLY_MESSAGE = (
+    "STOP: Midas is set to local_only = true in config.toml, so Claude may not read this meeting. "
+    "Tell the user that, and don't call the Midas tools again."
+)
+
+
 def _initial_context(data: dict) -> str:
     """What a (re)started copilot sees first: history, plus any request still unanswered,
     e.g. one made while the model was being switched. Answered requests stay history."""
@@ -73,6 +79,8 @@ async def wait_for_conversation() -> str:
     The first call returns the conversation so far, as context only.
     """
     global _cursor
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
     try:
         if _cursor is None:
             data = await _call("GET", "/api/recent", params={"last": 30})
@@ -112,6 +120,8 @@ async def show_answer(text: str, title: str = "") -> str:
 @mcp.tool()
 async def get_transcript(last_n: int = 40) -> str:
     """Returns the last last_n lines of the meeting transcript (and the user's requests)."""
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
     try:
         data = await _call("GET", "/api/recent", params={"last": max(1, min(last_n, 500))})
     except DaemonDown:
@@ -122,6 +132,8 @@ async def get_transcript(last_n: int = 40) -> str:
 @mcp.tool()
 async def midas_status() -> str:
     """Returns the Midas daemon's status and the user's context notes (context.md: who they are, role, agenda)."""
+    if config.local_only:
+        return LOCAL_ONLY_MESSAGE
     try:
         health = await _call("GET", "/api/health")
     except DaemonDown:

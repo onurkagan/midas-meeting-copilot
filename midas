@@ -46,6 +46,11 @@ case "${1:-help}" in
     ;;
   start)
     shift
+    if [[ "$("$PY" -c 'from midas.config import load_config; print(load_config().local_only)')" == "True" ]]; then
+      echo "local_only is on in config.toml, so Claude Code may not read the meeting."
+      echo "Open Midas.app (or ./midas run --copilot) and answer with an Ollama model instead."
+      exit 1
+    fi
     started_here=0
     if ! running; then
       mkdir -p "$ROOT/logs"
