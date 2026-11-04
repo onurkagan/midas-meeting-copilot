@@ -33,3 +33,16 @@
 
 # How long one idle wait lasts (s). Keep it under the 1 h prompt-cache lifetime.
 # idle_wait_s = 1500
+
+# Who answers: "claude" (Claude Code with your Claude account) or "ollama" (a local model in
+# Ollama: the meeting never leaves your Mac). The panel's ⚙︎ choice overrides this.
+# provider = "claude"
+
+# Ollama (https://ollama.com). Empty host: $OLLAMA_HOST, else http://127.0.0.1:11434.
+# ollama_host = ""
+# The model to answer with; empty picks the first one you have pulled. The panel's choice wins.
+# ollama_model = "llama3.2"
+# Context window for each answer (tokens); beyond it the oldest lines are left out.
+# ollama_context = 8192
+# How long Ollama keeps the model loaded between answers.
+# ollama_keep_alive = "30m"
