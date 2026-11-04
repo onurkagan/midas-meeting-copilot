@@ -34,10 +34,11 @@
 ## Features
 
 - **Works with any meeting app.** Midas captures system audio, so it works with Zoom, Google Meet, Microsoft Teams, Webex, Slack, FaceTime, or a video in your browser. Nothing to install in the meeting app.
-- **No meeting bot.** Nobody sees "Notetaker joined". There's no virtual audio driver either: audio comes straight from macOS's Core Audio process tap API.
+- **No meeting bot.** Nothing joins the call and there's no virtual audio driver: audio comes straight from macOS's Core Audio process tap API. At the start of each meeting Midas reminds you to tell the others, with a message ready to paste into the chat.
 - **Private, on-device transcription.** Whisper large-v3-turbo runs locally with MLX. Audio never leaves your Mac; only text goes to Claude, and only when you ask.
 - **Or fully local with Ollama.** Choose any model you've pulled into Ollama in the panel's settings. Answers stream in as the model writes them, and the meeting never leaves your Mac. No Claude account needed.
-- **Hidden from screen sharing.** The panel and its menu bar icon are marked `NSWindow.sharingType = .none`. The panel has no Dock icon, doesn't appear in ⌘⇥ and never takes focus from the meeting app.
+- **Private panel, transparent transcription.** The panel and its menu bar icon are marked `NSWindow.sharingType = .none`, so your notes and drafts stay off your screen share. It has no Dock icon, doesn't appear in ⌘⇥ and never takes focus from the meeting app. It keeps your notes private, not the fact that you're transcribing.
+- **Clear about where text goes.** A line under **Answer** shows whether answers stay on your Mac (Ollama) or go to Claude. `local_only` locks Midas to local models, ⌃⌥P takes the meeting off the record, and `keep_sessions_days` deletes old transcripts.
 - **Answers on demand.** One press (or ⌃⌥A) and Claude replies to the latest question within seconds. **Summary** lists decisions and action items so far.
 - **One timeline.** What was said, where you asked, and Claude's reply, in one scroll, with the sentence being spoken shown live.
 - **Light on your Claude plan.** About 4k tokens of context per call and no calls until you press. A 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
@@ -115,14 +116,14 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 | --- | --- |
 | ⌃⌥M | Show/hide the panel (clicking the menu bar icon or reopening Midas also brings it back) |
 | ⌃⌥A | **Answer**: have Claude reply to what has been said so far |
-| ⌃⌥P | Pause/resume listening |
+| ⌃⌥P | Go off the record (stop transcribing) and back; the timeline marks where |
 
-The whole meeting flows in one timeline: what was said, where you asked for an answer, and Claude's reply right below your request. The sentence being spoken appears live at the bottom. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears within a few seconds. The timeline follows along while you're at the bottom; if you scroll up to reread something, a **New** button takes you back. You can also type a specific request to Claude in the text field, and **Summary** lists the decisions and action items so far. The icon on each reply copies its text. The status pill at the top shows whether Midas is listening and Claude is ready; the ⚙︎ drawer holds the model and effort choice, the hotkeys, **Open folder** and **Quit Midas**.
+The whole meeting flows in one timeline: what was said, where you asked for an answer, and Claude's reply right below your request. The sentence being spoken appears live at the bottom. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears within a few seconds. The timeline follows along while you're at the bottom; if you scroll up to reread something, a **New** button takes you back. You can also type a specific request to Claude in the text field, and **Summary** lists the decisions and action items so far. The icon on each reply copies its text. The status pill at the top shows whether Midas is listening and Claude is ready, and the line under **Answer** says where answers are worked out. When a meeting starts, a card reminds you to tell the others and copies a ready-made message (English, plus Turkish if you transcribe Turkish). The ⚙︎ drawer holds the model and effort choice, the hotkeys, **Open folder** and **Quit Midas**.
 
 ### Personalizing
 
 - `context.md`: who you are, your role, your projects, the meeting agenda. Claude reads it at the start of every session.
-- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`).
+- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`), and privacy: the start-of-meeting reminder and its message (`consent_reminder`, `notice_message`), local models only (`local_only`) and how long to keep transcripts (`keep_sessions_days`).
 - `.claude/commands/midas.md`: Claude's behavior and reply style (when to answer, length, tone).
 
 ## Using it from a terminal
@@ -176,7 +177,7 @@ To try it without a meeting: `./midas run --input recording.m4a`, then `claude` 
 | Works fully offline | Yes, with Ollama | No | No |
 | Open source, self-hosted | Yes (MIT) | Usually not | Usually not |
 
-Looking for an open-source alternative to tools like Cluely or Granola? Midas gives live answers in an overlay that's hidden from screen sharing and keeps meeting notes without a bot, with transcription running locally and Claude as the model.
+Looking for an open-source alternative to tools like Granola or Otter? Midas transcribes on your Mac without a bot, keeps meeting notes as Markdown files, and drafts live answers with Claude or a local model.
 
 ## FAQ
 
@@ -202,13 +203,25 @@ An Apple Silicon Mac (M1 or later) with macOS 14.4 or later, and either Claude C
 By our measurements, a 30-minute meeting on Opus uses about 0.1% of a Max plan's 5-hour limit, because Claude makes a single, small call each time you press **Answer**.
 
 **Is it legal to transcribe a meeting?**
-Rules on recording and transcribing conversations differ by country and state, and some require everyone's consent. Tell the other participants when your situation calls for it.
+Rules on recording and transcribing conversations differ by country and state. Many US states, and many countries, require everyone's consent, and data protection law such as the GDPR or Turkey's KVKK applies at work. Tell the other participants: Midas reminds you at the start of each meeting and copies a message for the chat. [PRIVACY.md](PRIVACY.md) explains what Midas keeps and sends, and [consent/](consent/) has templates for a meeting notice, a privacy notice and a consent form. This isn't legal advice.
+
+**Can I use Midas in a job interview or an exam?**
+Only where AI help is clearly allowed. Don't use Midas in interviews, exams, certifications or assessments that forbid outside help; see [Use it fairly](#use-it-fairly).
 
 ## Limitations
 
 - Only system audio is captured, so your own voice isn't in the transcript; Claude hears only the other participants. Speakers aren't told apart.
 - The panel's invisibility relies on macOS's window sharing flag. Check with a test share before an important meeting; sharing a single window instead of the whole screen is the safest option.
-- Reply latency is ~1 s of transcription after someone stops talking, plus the Claude model's response time.
+- Reply latency is ~1 s of transcription after someone stops talking, plus the model's response time. On an M4 MacBook (16 GB) with Claude Opus 5.5 at low effort, the reply arrived a median 2.0 s after pressing **Answer** (95th percentile 2.4 s, 8 answers in a test meeting). With Ollama it depends on the model and your Mac. `./midas status` shows these numbers for your own meetings.
+
+## Use it fairly
+
+- **Tell people.** Let the other participants know you're transcribing, and get their consent where the law or your organization requires it. The reminder card gives you the words.
+- **Don't use it to cheat.** Midas isn't for job interviews, exams, certifications or assessments where outside help isn't allowed. The panel stays off screen shares to keep your own notes private, not to deceive anyone.
+- **Choose the copilot for the meeting.** With Claude, what was said goes to Anthropic under your Claude account when you ask for an answer. For confidential meetings, use Ollama, and set `local_only = true` to make sure.
+- **Keep only what you need.** Go off the record with ⌃⌥P, and set `keep_sessions_days` to delete old transcripts.
+
+See [PRIVACY.md](PRIVACY.md) for exactly what Midas stores and sends.
 
 ## Development
 
