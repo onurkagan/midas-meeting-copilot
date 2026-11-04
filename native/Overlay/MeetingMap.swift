@@ -48,6 +48,7 @@ struct MapNode: Decodable, Equatable, Identifiable {
     var due: String? = nil
     var said: Bool? = nil
     var done: Bool? = nil
+    var carried: String? = nil  // the earlier meeting it came from, "2026-11-04_10-00"
     var x: Double? = nil
     var y: Double? = nil
     var align: String? = nil  // "end": x is the right edge, "start": the left edge, "middle": the centre
@@ -62,6 +63,17 @@ struct MapNode: Decodable, Equatable, Identifiable {
         case "action": "Action item"
         default: sub ?? "Open"
         }
+    }
+
+    /// "4 Nov, 10:00" for an item carried over from an earlier meeting.
+    var carriedFrom: String? {
+        guard let carried, carried.count == 16 else { return nil }
+        let input = DateFormatter()
+        input.dateFormat = "yyyy-MM-dd_HH-mm"
+        guard let date = input.date(from: carried) else { return nil }
+        let output = DateFormatter()
+        output.dateFormat = "d MMM, HH:mm"
+        return output.string(from: date)
     }
 
     /// Owner and due date of an action item, "Mert · Thursday".

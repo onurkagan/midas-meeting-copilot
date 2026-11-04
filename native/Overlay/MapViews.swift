@@ -282,7 +282,8 @@ struct MapDetail: View {
             }
             .foregroundStyle(MapPalette.color(node.type, dark: scheme == .dark))
             Text(node.label).font(Tide.font(17, .heavy)).foregroundStyle(tide.ink).fixedSize(horizontal: false, vertical: true)
-            Text([node.time, map.node(node.topic)?.label].compactMap { $0 }.joined(separator: " · "))
+            Text(node.carriedFrom.map { "Left open in the meeting of \($0)" }
+                ?? [node.time, map.node(node.topic)?.label].compactMap { $0 }.joined(separator: " · "))
                 .font(Tide.font(11.5, .medium)).monospacedDigit().foregroundStyle(tide.muted)
             if node.type == "action" {
                 if !node.assignment.isEmpty { Text(node.assignment).font(Tide.font(12.5, .semibold)) }
