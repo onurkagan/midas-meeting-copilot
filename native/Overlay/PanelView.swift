@@ -55,13 +55,13 @@ struct OverlayView: View {
             StatusPill(client: client)
             Spacer(minLength: 4)
             HeaderButton(
-                symbol: client.snapshot?.paused == true ? "play.fill" : "pause.fill",
+                icon: client.snapshot?.paused == true ? .play : .pause,
                 help: client.snapshot?.paused == true
                     ? "Back on the record: transcribe again (⌃⌥P)"
                     : "Go off the record: stop transcribing until you resume (⌃⌥P)",
                 action: client.togglePause)
-            HeaderButton(symbol: "minus", help: "Hide the panel (⌃⌥M)", action: hide)
-            HeaderButton(symbol: "slider.horizontal.3", help: "Settings", active: showSettings) {
+            HeaderButton(icon: .minimize, help: "Hide the panel (⌃⌥M)", action: hide)
+            HeaderButton(icon: .settings, help: "Settings", active: showSettings) {
                 withAnimation(.easeOut(duration: 0.15)) { showSettings.toggle() }
             }
         }
@@ -83,7 +83,7 @@ struct OverlayView: View {
                         question = ""
                     }
                 Button(action: client.summarize) {
-                    Label("Summary", systemImage: "list.bullet").font(Tide.font(12.5, .semibold))
+                    Text("Summary").font(Tide.font(12.5, .semibold))
                 }
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(!client.connected || client.pending)
@@ -95,8 +95,6 @@ struct OverlayView: View {
                 HStack(spacing: 8) {
                     if client.pending {
                         ProgressView().controlSize(.small).tint(.white)
-                    } else {
-                        Image(systemName: "sparkles")
                     }
                     Text(client.pending ? "Drafting…" : "Answer").font(Tide.font(14.5, .bold))
                     Text("⌃⌥A").font(Tide.font(11, .medium)).opacity(0.75)
@@ -108,7 +106,10 @@ struct OverlayView: View {
             .help("Reply to what has been said so far (⌃⌥A)")
             if client.connected {
                 let destination = client.destination
-                Label(destination.text, systemImage: destination.symbol)
+                HStack(spacing: 5) {
+                    Icon(destination.local ? .lock : .send, size: 12, weight: 2)
+                    Text(destination.text)
+                }
                     .font(Tide.font(10.5, .medium))
                     .foregroundStyle(destination.local ? tide.foamText : tide.muted)
                     .lineLimit(1)
@@ -165,9 +166,12 @@ private struct PillButtonStyle: ButtonStyle {
             .foregroundStyle(tide.accentText)
             .padding(.horizontal, 11)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(tide.field.opacity(configuration.isPressed ? 0.6 : 1)))
-            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(tide.cardStroke))
-            .contentShape(Rectangle())
+            .background {
+                // One shape, filled and then stroked on its own edge, so no fill shows past the rim.
+                Capsule().fill(tide.field.opacity(configuration.isPressed ? 0.6 : 1))
+                    .overlay(Capsule().stroke(tide.cardStroke, lineWidth: 1))
+            }
+            .contentShape(Capsule())
     }
 }
 
@@ -189,7 +193,7 @@ private struct SecondaryButtonStyle: ButtonStyle {
 }
 
 private struct HeaderButton: View {
-    let symbol: String
+    let icon: TideIcon
     let help: String
     var active = false
     let action: () -> Void
@@ -197,8 +201,7 @@ private struct HeaderButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12, weight: .semibold))
+            Icon(icon, size: 16, weight: 1.8)
                 .frame(width: 26, height: 24)
                 .background(RoundedRectangle(cornerRadius: 8).fill(active ? tide.accent.opacity(0.15) : .clear))
                 .contentShape(Rectangle())
@@ -257,9 +260,15 @@ private struct SettingsDrawer: View {
     @ObservedObject var client: MidasClient
     let root: String?
     @Environment(\.tide) private var tide
+    @AppStorage(TideAppearance.key) private var theme = TideAppearance.system.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
+            row("Theme") {
+                Picker("Theme", selection: $theme) {
+                    ForEach(TideAppearance.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
+                }
+            }
             if let copilot = client.snapshot?.copilot {
                 // Segmented controls and an inline list on purpose: pop-up menus open in
                 // separate windows that screen sharing would capture.
@@ -314,14 +323,14 @@ private struct SettingsDrawer: View {
                     Button {
                         NSWorkspace.shared.open(URL(fileURLWithPath: root))
                     } label: {
-                        Label("Open folder", systemImage: "folder")
+                        HStack(spacing: 6) { Icon(.folder, size: 14); Text("Open folder") }
                     }
                     .buttonStyle(SecondaryButtonStyle())
                     .help("context.md, config.toml and meeting logs")
                 }
                 Spacer()
                 Button(action: client.quit) {
-                    Label("Quit Midas", systemImage: "power")
+                    HStack(spacing: 6) { Icon(.power, size: 14); Text("Quit Midas") }
                 }
                 .buttonStyle(SecondaryButtonStyle())
             }
@@ -372,7 +381,7 @@ private struct OllamaModels: View {
                 Text("Model")
                 Spacer()
                 Button(action: client.refreshOllama) {
-                    Image(systemName: "arrow.clockwise").font(.system(size: 10, weight: .semibold))
+                    Icon(.refresh, size: 14)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(tide.muted)
@@ -413,7 +422,7 @@ private struct OllamaModels: View {
             client.setCopilot(ollamaModel: model.name)
         } label: {
             HStack(spacing: 7) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                Icon(.radio, size: 15, filled: isSelected)
                     .foregroundStyle(isSelected ? tide.accent : tide.muted)
                 Text(model.name)
                     .font(Tide.font(11.5, isSelected ? .bold : .regular))
@@ -455,12 +464,12 @@ private struct ConsentBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: "water.waves")
+            HStack(alignment: .center, spacing: 7) {
+                Icon(.waves, size: 16)
                 Text("Let the others know you're transcribing").font(Tide.font(12.5, .bold))
                 Spacer(minLength: 4)
                 Button(action: dismiss) {
-                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                    Icon(.close, size: 13)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(tide.muted)
@@ -481,7 +490,7 @@ private struct ConsentBanner: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
                     } label: {
                         HStack(spacing: 5) {
-                            Image(systemName: copied == language.key ? "checkmark" : "doc.on.doc")
+                            if copied == language.key { Icon(.check, size: 12, weight: 2.2) }
                             Text(copied == language.key ? "Copied" : "Copy · \(language.label)")
                         }
                         .font(Tide.font(11.5, .semibold))
@@ -513,7 +522,7 @@ private struct CopyCommand: View {
                 copied = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
             } label: {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 10))
+                Icon(copied ? .check : .copy, size: 13)
             }
             .buttonStyle(.plain)
             .foregroundStyle(tide.muted)

@@ -56,7 +56,7 @@ struct TimelineView: View {
                         withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottom, anchor: .bottom) }
                         unseen = false
                     } label: {
-                        Label("New", systemImage: "arrow.down")
+                        HStack(spacing: 4) { Icon(.arrowDown, size: 12, weight: 2.2); Text("New") }
                             .font(Tide.font(11, .bold))
                             .padding(.horizontal, 11)
                             .padding(.vertical, 5)
@@ -151,8 +151,8 @@ struct RequestMarker: View {
     @Environment(\.tide) private var tide
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: event.text.isEmpty ? "sparkles" : "text.bubble")
+        HStack(alignment: .center, spacing: 6) {
+            Icon(event.text.isEmpty ? .sparkle : .chat, size: 13, weight: 2)
             Text(event.text.isEmpty ? "You asked for an answer" : event.text)
                 .fixedSize(horizontal: false, vertical: true)
             Text(event.minute).foregroundStyle(tide.faint)
@@ -175,7 +175,7 @@ struct RecordMarker: View {
     var body: some View {
         let off = event.text.hasPrefix("Off")
         HStack(spacing: 6) {
-            Image(systemName: off ? "pause.circle" : "play.circle")
+            Icon(off ? .pause : .play, size: 12, weight: 2)
             Text(off ? "Off the record · not transcribing" : "Back on the record")
             Text(event.minute).foregroundStyle(tide.faint)
         }
@@ -198,7 +198,6 @@ struct AnswerCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "sparkles")
                 Text(event.title.isEmpty ? "Suggested answer" : event.title)
                     .font(Tide.font(13.5, .bold))
                     .lineLimit(2)
@@ -210,7 +209,7 @@ struct AnswerCard: View {
                     copied = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
                 } label: {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 11))
+                    Icon(copied ? .check : .copy, size: 14)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(tide.muted)

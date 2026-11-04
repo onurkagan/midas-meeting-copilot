@@ -140,17 +140,17 @@ final class MidasClient: ObservableObject {
     func dismissNotice() { noticeDue = false }
 
     /// Where answers are worked out, for the line under the Answer button.
-    var destination: (symbol: String, text: String, local: Bool) {
+    var destination: (text: String, local: Bool) {
         let privacy = snapshot?.privacy
         if let copilot = snapshot?.copilot, copilot.isOllama {
             let model = copilot.ollama_model.map { $0.isEmpty ? "" : " · \($0)" } ?? ""
             let lock = privacy?.local_only == true ? "Local only" : "Stays on this Mac"
-            return ("lock.fill", "\(lock) · Ollama\(model)", true)
+            return ("\(lock) · Ollama\(model)", true)
         }
         if privacy?.auto_answer == true {
-            return ("arrow.up.forward", "Claude reads the meeting as it happens (auto answer)", false)
+            return ("Claude reads the meeting as it happens (auto answer)", false)
         }
-        return ("arrow.up.forward", "Sent to Claude only when you ask", false)
+        return ("Sent to Claude only when you ask", false)
     }
 
     private func post(_ path: String, _ body: [String: Any]) {
