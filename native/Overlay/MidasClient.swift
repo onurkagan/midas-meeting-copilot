@@ -15,8 +15,32 @@ struct MidasEvent: Decodable, Identifiable, Equatable {
 }
 
 struct CopilotSettings: Decodable, Equatable {
-    let model: String
+    var provider: String? = nil  // "claude" or "ollama"; older daemons send none
+    let model: String  // Claude's
     let effort: String
+    var ollama_model: String? = nil
+
+    var isOllama: Bool { provider == "ollama" }
+}
+
+/// A model pulled into Ollama, as the daemon lists it.
+struct OllamaModel: Decodable, Identifiable, Equatable {
+    let name: String
+    let size: Int64
+    let parameters: String
+    let quantization: String
+
+    var id: String { name }
+    /// "3.2B · 2.0 GB", written like Ollama writes the parameter count.
+    var detail: String {
+        [parameters, String(format: "%.1f GB", Double(size) / 1e9)].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+struct OllamaCatalog: Decodable {
+    let reachable: Bool
+    let models: [OllamaModel]
+    var error: String? = nil
 }
 
 struct Snapshot: Decodable {
@@ -30,6 +54,7 @@ struct Snapshot: Decodable {
     let session: Double
     let count: Int
     let events: [MidasEvent]
+    var draft: String? = nil  // the answer as a streaming copilot (Ollama) writes it
 }
 
 final class MidasClient: ObservableObject {
@@ -37,6 +62,9 @@ final class MidasClient: ObservableObject {
     /// The whole meeting so far, oldest first; each poll fetches only what is new.
     @Published private(set) var events: [MidasEvent] = []
     @Published private(set) var connected = false
+    /// Local models to choose from, fetched when the Ollama settings are shown.
+    @Published var ollama: OllamaCatalog?
+    @Published private(set) var refreshingOllama = false
     private let base: URL
     private var timer: Timer?
     private var inFlight = false
@@ -52,6 +80,9 @@ final class MidasClient: ObservableObject {
 
     var pending: Bool { snapshot?.pending_request == true }
     var partial: String { snapshot?.partial ?? "" }
+    var draft: String { snapshot?.draft ?? "" }
+    /// Who answers: "Claude", or "Ollama" for a local model.
+    var copilotName: String { snapshot?.copilot?.isOllama == true ? "Ollama" : "Claude" }
 
     private func poll() {
         guard !inFlight else { return }
@@ -99,19 +130,39 @@ final class MidasClient: ObservableObject {
     var statusLine: String {
         guard connected, let snapshot else { return "can't reach the daemon" }
         let listening = snapshot.paused ? "paused" : snapshot.status
-        return "\(listening) · Claude \(snapshot.claude)"
+        let model = snapshot.copilot?.isOllama == true ? snapshot.copilot?.ollama_model ?? "" : ""
+        return "\(listening) · \(copilotName) \(snapshot.claude)" + (model.isEmpty ? "" : " (\(model))")
     }
 
     func togglePause() {
         post("control", ["action": snapshot?.paused == true ? "resume" : "pause"])
     }
 
-    /// Restarts the copilot with another model or effort level.
-    func setCopilot(model: String? = nil, effort: String? = nil) {
+    /// Switches between Claude and Ollama, or restarts the copilot with another model or effort.
+    func setCopilot(provider: String? = nil, model: String? = nil, effort: String? = nil, ollamaModel: String? = nil) {
         var body: [String: Any] = ["action": "copilot"]
+        if let provider { body["provider"] = provider }
         if let model { body["model"] = model }
         if let effort { body["effort"] = effort }
+        if let ollamaModel { body["ollama_model"] = ollamaModel }
         post("control", body)
+    }
+
+    func refreshOllama() {
+        guard !refreshingOllama else { return }
+        refreshingOllama = true
+        var request = URLRequest(url: base.appendingPathComponent("ollama"))
+        request.timeoutInterval = 15
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            let catalog = data.flatMap { try? JSONDecoder().decode(OllamaCatalog.self, from: $0) }
+            DispatchQueue.main.async {
+                self.refreshingOllama = false
+                // If the daemon didn't answer, keep the list from last time.
+                if let catalog { self.ollama = catalog } else if self.ollama == nil {
+                    self.ollama = OllamaCatalog(reachable: false, models: [], error: "Can't reach the Midas daemon.")
+                }
+            }
+        }.resume()
     }
 
     /// Stops the whole of Midas (daemon, Claude copilot and this panel).
