@@ -21,8 +21,10 @@ NOTICES = {
     ),
 }
 
-# Only Midas's own logs (sessions/YYYY-MM-DD_HH-MM.md) are ever deleted.
+# Only Midas's own logs (sessions/YYYY-MM-DD_HH-MM.md) are ever deleted, with the meeting
+# map files saved beside them.
 SESSION_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9].md"
+MAP_SUFFIXES = (".map.json", ".map.md", ".canvas", ".png")
 
 
 def panel_privacy(config: Config) -> dict:
@@ -51,6 +53,8 @@ def prune_sessions(folder: Path, days: int) -> int:
     for path in folder.glob(SESSION_GLOB):
         if path.stat().st_mtime < cutoff:
             path.unlink(missing_ok=True)
+            for suffix in MAP_SUFFIXES:
+                path.with_suffix(suffix).unlink(missing_ok=True)
             removed += 1
     if removed:
         log.info("deleted %d meeting log(s) older than %d days (keep_sessions_days)", removed, days)
