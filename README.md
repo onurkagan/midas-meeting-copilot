@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/mai
 
 The [installer](install.sh) sets up what's missing (Xcode command line tools, Python, [Claude Code](https://docs.claude.com/claude-code)) and asks you to sign in to Claude Code. It then downloads Midas into `~/midas-meeting-copilot`, builds it, downloads the Whisper model (~1.6 GB) and opens Midas.app from `/Applications`. Run the same command again to update; your settings and meeting logs are kept.
 
-**Manual setup:** with the Xcode command line tools, Python 3.11+ and Claude Code installed:
+**Manual setup:** with the Xcode command line tools and Claude Code installed. `./midas setup` uses Python 3.11 or later if you have it (Homebrew's too, even when it isn't on your `PATH`); otherwise it installs Python 3.12 with [uv](https://docs.astral.sh/uv/) into `~/.local`, nothing system-wide.
 
 ```bash
 git clone https://github.com/onurkagan/midas-meeting-copilot.git
