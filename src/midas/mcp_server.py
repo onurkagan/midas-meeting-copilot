@@ -6,7 +6,8 @@ import os
 import httpx
 from mcp.server import MCPServer
 
-from .config import CONTEXT_FILE, ROOT, load_config
+from .config import CONTEXT_FILE, load_config
+from .conversation import format_events, user_context
 from .prompt import copilot_prompt
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -47,24 +48,6 @@ DOWN_MESSAGE = (
 )
 
 
-def _format(events: list[dict], partial: str = "", live: bool = True) -> str:
-    """Live requests go last and must be answered; past ones stay in place as history."""
-    lines = []
-    for event in events:
-        if event["kind"] == "transcript":
-            lines.append(f"[{event['time']}] {event['text']}")
-        elif not live:
-            lines.append(f"[{event['time']}] (earlier request, already answered: {event['text'] or 'Answer'})")
-    if partial:
-        lines.append(f"[being said right now, unfinished] {partial}")
-    if live:
-        for event in events:
-            if event["kind"] == "request":
-                ask = event["text"] or "(pressed Answer: draft a reply to the latest question or topic now)"
-                lines.append(f"[{event['time']}] >>> USER REQUEST (must answer): {ask}")
-    return "\n".join(lines)
-
-
 def _initial_context(data: dict) -> str:
     """What a (re)started copilot sees first: history, plus any request still unanswered,
     e.g. one made while the model was being switched. Answered requests stay history."""
@@ -73,9 +56,9 @@ def _initial_context(data: dict) -> str:
     history = [event for event in data["events"] if event["id"] not in pending_ids]
     parts = []
     if history:
-        parts.append("Context: the conversation so far (not a request, do not answer):\n" + _format(history, live=False))
+        parts.append("Context: the conversation so far (not a request, do not answer):\n" + format_events(history, live=False))
     if pending:
-        parts.append("Unanswered request:\n" + _format(pending))
+        parts.append("Unanswered request:\n" + format_events(pending))
     return "\n\n".join(parts)
 
 
@@ -105,7 +88,7 @@ async def wait_for_conversation() -> str:
     _cursor = data["cursor"]
     if not data["events"]:
         return "(no request yet; call wait_for_conversation again right away)"
-    text = _format(data["events"], data.get("partial", ""))
+    text = format_events(data["events"], data.get("partial", ""))
     if data.get("auto") and not any(e["kind"] == "request" for e in data["events"]):
         text += "\n(Auto mode: show a reply with show_answer if one is needed, otherwise go back to waiting.)"
     return text
@@ -133,18 +116,7 @@ async def get_transcript(last_n: int = 40) -> str:
         data = await _call("GET", "/api/recent", params={"last": max(1, min(last_n, 500))})
     except DaemonDown:
         return DOWN_MESSAGE
-    return _format(data["events"], live=False) or "(no transcript yet)"
-
-
-def _user_context() -> str:
-    """The user's notes from context.md, unless it is still the untouched template."""
-    template = ROOT / "context.example.md"
-    if not CONTEXT_FILE.exists():
-        return "(none)"
-    text = CONTEXT_FILE.read_text(encoding="utf-8").strip()
-    if template.exists() and text == template.read_text(encoding="utf-8").strip():
-        return "(template not filled in)"
-    return text[:6000]
+    return format_events(data["events"], live=False) or "(no transcript yet)"
 
 
 @mcp.tool()
@@ -157,7 +129,7 @@ async def midas_status() -> str:
     return (
         f"Status: {health['status']}{' (paused)' if health['paused'] else ''}\n"
         f"Session log: {health['session_file']}\n\n"
-        f"The user's context notes ({CONTEXT_FILE.name}):\n{_user_context()}"
+        f"The user's context notes ({CONTEXT_FILE.name}):\n{user_context()}"
     )
 
 
