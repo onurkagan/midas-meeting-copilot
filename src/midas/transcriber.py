@@ -2,6 +2,7 @@
 
 import logging
 import re
+from pathlib import Path
 
 import numpy as np
 
@@ -46,10 +47,19 @@ class Transcriber:
 
     def load(self):
         import mlx.core as mx
+        from huggingface_hub import snapshot_download
         from mlx_whisper.load_models import load_model
 
         log.info("loading model: %s (downloaded on first use)", self.model_repo)
-        self._model = load_model(self.model_repo, dtype=mx.float16)
+        path = Path(self.model_repo).expanduser()
+        if not path.exists():
+            # A downloaded model loads without asking Hugging Face for updates, so Midas
+            # makes no network requests of its own once it's set up.
+            try:
+                path = snapshot_download(self.model_repo, local_files_only=True)
+            except Exception:
+                path = snapshot_download(self.model_repo)
+        self._model = load_model(str(path), dtype=mx.float16)
         self.transcribe(np.zeros(16000, dtype=np.float32), final=False)
         log.info("model ready")
 
