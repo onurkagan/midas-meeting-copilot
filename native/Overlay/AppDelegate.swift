@@ -49,7 +49,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.minSize = NSSize(width: 340, height: 400)
-        // Follows the Mac's appearance: Tide by day, Tide at night in dark mode.
+        // Tide by day, Tide at night in dark mode: following the Mac, or the theme chosen in Settings.
+        panel.appearance = TideAppearance.current.appearance
+        NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let panel = self?.panel else { return }
+            let appearance = TideAppearance.current.appearance
+            if panel.appearance?.name != appearance?.name { panel.appearance = appearance }
+        }
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             panel.standardWindowButton(button)?.isHidden = true
         }

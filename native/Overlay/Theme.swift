@@ -73,6 +73,34 @@ extension Color {
     }
 }
 
+/// The theme chosen in Settings: follow the Mac, or always Tide by day or at night.
+enum TideAppearance: String, CaseIterable {
+    case system, light, dark
+
+    static let key = "theme"
+
+    var label: String {
+        switch self {
+        case .system: "Auto"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    /// The appearance for the panel's window; nil follows the Mac.
+    var appearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+
+    static var current: TideAppearance {
+        TideAppearance(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .system
+    }
+}
+
 private struct TideKey: EnvironmentKey {
     static let defaultValue = Tide.light
 }
