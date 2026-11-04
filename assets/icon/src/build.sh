@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates the Midas icon: the master SVG and the 1024 px PNG that install_app.sh uses.
-# The fur is hundreds of seeded strokes, so change the generator, not the SVG.
+# Change the generator, not the SVG.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
