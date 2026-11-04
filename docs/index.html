@@ -31,6 +31,164 @@
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preload" as="image" href="assets/panel.png" fetchpriority="high">
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://onurkagan.github.io/midas-meeting-copilot/#website",
+      "url": "https://onurkagan.github.io/midas-meeting-copilot/",
+      "name": "Midas",
+      "description": "Open-source AI meeting copilot for Mac.",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://onurkagan.github.io/midas-meeting-copilot/#app",
+      "name": "Midas",
+      "alternateName": [
+        "Midas meeting copilot",
+        "Midas AI meeting assistant"
+      ],
+      "description": "Free, open-source AI meeting copilot for macOS. It transcribes Zoom, Google Meet and Microsoft Teams calls on device with Whisper, and Claude Code drafts answers in a panel that is hidden from screen sharing. No bot joins the call.",
+      "url": "https://onurkagan.github.io/midas-meeting-copilot/",
+      "downloadUrl": "https://github.com/onurkagan/midas-meeting-copilot",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "AI meeting assistant",
+      "operatingSystem": "macOS 14.4 or later",
+      "processorRequirements": "Apple Silicon (arm64)",
+      "softwareVersion": "0.1.0",
+      "softwareRequirements": "Claude Code, Python 3.11 or later, Xcode command line tools",
+      "license": "https://opensource.org/licenses/MIT",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "image": "https://onurkagan.github.io/midas-meeting-copilot/assets/icon-512.png",
+      "screenshot": [
+        "https://onurkagan.github.io/midas-meeting-copilot/assets/panel.png",
+        "https://onurkagan.github.io/midas-meeting-copilot/assets/panel-settings.png"
+      ],
+      "featureList": [
+        "Real-time meeting transcription on device with Whisper large-v3-turbo (MLX)",
+        "Works with Zoom, Google Meet, Microsoft Teams and any app that plays audio",
+        "No meeting bot and no virtual audio driver (Core Audio process tap)",
+        "Answer panel hidden from screen sharing",
+        "On-demand answers and meeting summaries from Claude via Claude Code and MCP",
+        "Choice of Claude model and effort",
+        "Meeting notes saved as Markdown"
+      ],
+      "author": {
+        "@type": "Person",
+        "name": "Onur Kağan ALDEMİR",
+        "url": "https://github.com/onurkagan"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Onur Kağan ALDEMİR",
+        "url": "https://github.com/onurkagan"
+      },
+      "sameAs": [
+        "https://github.com/onurkagan/midas-meeting-copilot"
+      ]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://onurkagan.github.io/midas-meeting-copilot/#source",
+      "name": "midas-meeting-copilot",
+      "codeRepository": "https://github.com/onurkagan/midas-meeting-copilot",
+      "programmingLanguage": [
+        "Swift",
+        "Python"
+      ],
+      "runtimePlatform": "macOS",
+      "license": "https://opensource.org/licenses/MIT",
+      "author": {
+        "@type": "Person",
+        "name": "Onur Kağan ALDEMİR",
+        "url": "https://github.com/onurkagan"
+      },
+      "targetProduct": {
+        "@id": "https://onurkagan.github.io/midas-meeting-copilot/#app"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://onurkagan.github.io/midas-meeting-copilot/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can other participants see Midas in Zoom, Google Meet or Microsoft Teams?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Midas never joins the meeting: there's no bot, no extra participant and no virtual microphone or speaker. The panel asks macOS to keep it out of screen capture. Whether a capture tool respects that depends on how it records the screen, so do a test share before an important meeting; sharing a single window instead of the whole screen is the safest option."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Midas record my meetings or upload audio?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally, and text is sent to Claude only when you press Answer or Summary (or continuously if you turn on automatic answers)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which languages does it understand?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Turkish and English by default. Whisper supports about 100 languages, and you choose them in config.toml."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does it transcribe my own voice?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What do I need to run it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "An Apple Silicon Mac (M1 or later) with macOS 14.4 or later, and Claude Code signed in to your Claude account. It doesn't run on Intel Macs, Windows or Linux: it relies on MLX and on Core Audio process taps, added in macOS 14.4."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much of my Claude usage does it take?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "By our measurements, a 30-minute meeting on Opus uses about 0.1% of a Max plan's 5-hour limit, because Claude makes a single, small call each time you press Answer."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Midas free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Midas is open source under the MIT license. Answers use your own Claude account through Claude Code."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it legal to transcribe a meeting?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Rules on recording and transcribing conversations differ by country and state, and some require everyone's consent. Tell the other participants when your situation calls for it."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
 <style>
   :root {
     --bg: #050c1f;
