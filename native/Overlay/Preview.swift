@@ -11,6 +11,7 @@ enum Preview {
         draw(sample(pending: true), settings: true, to: folder + "/drafting-settings.png")
         draw(empty, settings: false, to: folder + "/empty.png")
         draw(sample(pending: true, local: true), settings: true, ollama: models, to: folder + "/ollama-settings.png")
+        draw(meetingStart, settings: false, to: folder + "/consent.png")
     }
 
     private static func draw(_ snapshot: Snapshot, settings: Bool, ollama: OllamaCatalog? = nil, to path: String) {
@@ -58,8 +59,34 @@ enum Preview {
                 ? CopilotSettings(provider: "ollama", model: "opus", effort: "medium", ollama_model: "llama3.2:3b")
                 : CopilotSettings(model: "opus", effort: "medium"),
             session: 1, count: events.count, events: events,
-            draft: local ? "**Postgres for now.** Our volumes are small, and we can move analytics to" : nil)
+            draft: local ? "**Postgres for now.** Our volumes are small, and we can move analytics to" : nil,
+            privacy: privacy(reminder: false))
     }
+
+    private static func privacy(reminder: Bool) -> PrivacySettings {
+        PrivacySettings(
+            reminder: reminder,
+            notices: ["en": "Heads-up: I'm using an AI assistant on my Mac (Midas) that transcribes this call…", "tr": "Bilginize…"],
+            local_only: false, auto_answer: false)
+    }
+
+    /// The first minutes of a meeting: the reminder to tell the others, and a stretch off the record.
+    private static let meetingStart: Snapshot = {
+        let lines: [(String, String, String)] = [
+            ("10:00:12", "transcript", "Hi everyone, can you hear me okay?"),
+            ("10:00:20", "transcript", "Great. Before we start, a quick personal matter, one second."),
+            ("10:00:24", "marker", "Off the record"),
+            ("10:02:41", "marker", "Back on the record"),
+            ("10:02:45", "transcript", "Okay, first item: the hiring plan for next quarter."),
+        ]
+        let events = lines.enumerated().map { index, line in
+            MidasEvent(id: index + 1, time: line.0, kind: line.1, text: line.2, title: "")
+        }
+        return Snapshot(
+            status: "listening", paused: false, speaking: false, claude: "ready", pending_request: false, partial: "",
+            copilot: CopilotSettings(model: "opus", effort: "medium"), session: 1, count: events.count, events: events,
+            privacy: privacy(reminder: true))
+    }()
 
     private static let models = OllamaCatalog(reachable: true, models: [
         OllamaModel(name: "gemma3:4b", size: 3_338_801_804, parameters: "4.3B", quantization: "Q4_K_M"),
@@ -69,5 +96,6 @@ enum Preview {
 
     private static let empty = Snapshot(
         status: "listening", paused: false, speaking: false, claude: "ready", pending_request: false, partial: "",
-        copilot: CopilotSettings(model: "opus", effort: "medium"), session: 1, count: 0, events: [])
+        copilot: CopilotSettings(model: "opus", effort: "medium"), session: 1, count: 0, events: [],
+        privacy: privacy(reminder: false))
 }
