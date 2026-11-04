@@ -184,7 +184,7 @@ class Store:
                 "session_file": self.session_file.name,
                 "copilot": self.copilot,
                 "privacy": self.privacy,
-                "map": self.map_info,
+                "map": self.map_info or None,
                 "session": self.started,
                 "count": len(self._events),
                 "events": self._events[max(since, 0) :],
