@@ -2,30 +2,40 @@ import AppKit
 import SwiftUI
 
 /// `midas-overlay --render-preview <folder>` draws the panel with a sample meeting in a
-/// few states, for design work: the live panel is hidden from screenshots by design.
+/// few states, in light (Tide) and dark (Tide at night), for design work: the live panel is
+/// hidden from screenshots by design. Dark versions end in "-dark".
 enum Preview {
     static func render(into folder: String) {
         _ = NSApplication.shared
-        let meeting = sample(pending: false)
-        draw(meeting, settings: false, to: folder + "/meeting.png")
-        draw(sample(pending: true), settings: true, to: folder + "/drafting-settings.png")
-        draw(empty, settings: false, to: folder + "/empty.png")
-        draw(sample(pending: true, local: true), settings: true, ollama: models, to: folder + "/ollama-settings.png")
-        draw(meetingStart, settings: false, to: folder + "/consent.png")
+        TideFont.register()
+        for dark in [false, true] {
+            let suffix = dark ? "-dark" : ""
+            draw(sample(pending: false), settings: false, dark: dark, to: folder + "/meeting\(suffix).png")
+            draw(sample(pending: true), settings: true, dark: dark, to: folder + "/drafting-settings\(suffix).png")
+            draw(empty, settings: false, dark: dark, to: folder + "/empty\(suffix).png")
+            draw(sample(pending: true, local: true), settings: true, ollama: models, dark: dark, to: folder + "/ollama-settings\(suffix).png")
+            draw(meetingStart, settings: false, dark: dark, to: folder + "/consent\(suffix).png")
+        }
     }
 
-    private static func draw(_ snapshot: Snapshot, settings: Bool, ollama: OllamaCatalog? = nil, to path: String) {
+    private static func draw(_ snapshot: Snapshot, settings: Bool, ollama: OllamaCatalog? = nil, dark: Bool, to path: String) {
         let size = NSRect(x: 0, y: 0, width: 420, height: 640)
         let client = MidasClient(port: 0)
         client.apply(snapshot, since: 0)
         client.ollama = ollama
+        // The desktop the glass sits on: a calm sea by day, the night sea in dark mode.
+        let desk = dark
+            ? LinearGradient(colors: [Color(hex: 0x0B2231), Color(hex: 0x0D4A55)], startPoint: .top, endPoint: .bottom)
+            : LinearGradient(colors: [Color(hex: 0xCFE6F0), Color(hex: 0x6FAFCB)], startPoint: .top, endPoint: .bottom)
         let view = OverlayView(client: client, root: "/tmp", hide: {}, showSettings: settings)
+            .modifier(TideTheme())
+            .clipShape(RoundedRectangle(cornerRadius: panelRadius))
             .frame(width: size.width, height: size.height)
-            .background(Color(red: 0.12, green: 0.13, blue: 0.16))
+            .background(desk)
         let hosting = NSHostingView(rootView: view)
         hosting.frame = size
         let window = NSWindow(contentRect: size, styleMask: .borderless, backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.5))
