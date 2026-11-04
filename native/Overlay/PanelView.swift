@@ -12,12 +12,14 @@ struct OverlayView: View {
     @Environment(\.tide) private var tide
     @State private var question = ""
     @State private var showSettings: Bool
+    @State private var tab: PanelTab
 
-    init(client: MidasClient, root: String?, hide: @escaping () -> Void, showSettings: Bool = false) {
+    init(client: MidasClient, root: String?, hide: @escaping () -> Void, showSettings: Bool = false, tab: PanelTab = .timeline) {
         self.client = client
         self.root = root
         self.hide = hide
         _showSettings = State(initialValue: showSettings)
+        _tab = State(initialValue: tab)
     }
 
     var body: some View {
@@ -36,7 +38,13 @@ struct OverlayView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 6)
             }
-            TimelineView(client: client)
+            PanelTabs(tab: $tab, news: tab != .map && client.mapHasNews)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
+            switch tab {
+            case .timeline: TimelineView(client: client)
+            case .map: MapTabView(client: client)
+            }
             Rectangle().fill(tide.divider).frame(height: 1)
             composer.padding(12)
         }
