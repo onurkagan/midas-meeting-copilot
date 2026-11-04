@@ -120,7 +120,7 @@ struct OverlayView: View {
     }
 }
 
-/// The ears and crown on a tile of sea blue to seafoam. (The app icon will follow.)
+/// A small app icon: the ears and crown on a tile of sea blue to seafoam.
 struct MidasMark: View {
     let size: CGFloat
 
@@ -129,7 +129,7 @@ struct MidasMark: View {
             .fill(LinearGradient(colors: [Color(hex: 0x1F6FB8), Color(hex: 0x3BB3A6)], startPoint: .topLeading, endPoint: .bottomTrailing))
             .frame(width: size, height: size)
             .overlay(
-                Image(nsImage: EarsArt.glyph(size: size * 0.78)).renderingMode(.template).foregroundStyle(.white))
+                Image(nsImage: EarsArt.glyph(size: size * 0.64)).renderingMode(.template).foregroundStyle(.white))
             .accessibilityHidden(true)
     }
 }
