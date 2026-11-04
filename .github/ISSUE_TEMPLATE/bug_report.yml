@@ -1,0 +1,86 @@
+name: Bug report
+description: Something in Midas doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check the [open issues](https://github.com/onurkagan/midas-meeting-copilot/issues) and the [FAQ](https://github.com/onurkagan/midas-meeting-copilot#faq) first.
+
+        **Security problem?** Don't file it here; [report it privately](https://github.com/onurkagan/midas-meeting-copilot/security/advisories/new) instead.
+        **Privacy:** this issue is public. Leave meeting transcripts, names and other private details out.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead.
+      placeholder: After I press Answer, no answer appears in the panel.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Midas and join a Zoom call
+        2. Press ⌃⌥A
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: run
+    attributes:
+      label: How do you run Midas?
+      options:
+        - Midas.app
+        - ./midas start (Claude Code in a terminal)
+        - ./midas run
+    validations:
+      required: true
+  - type: dropdown
+    id: copilot
+    attributes:
+      label: Copilot
+      options:
+        - Claude
+        - Ollama (local)
+        - Not related to answers
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The model chosen in the panel's settings (⚙︎), if it matters here.
+      placeholder: opus · medium, or llama3.2:3b
+  - type: input
+    id: version
+    attributes:
+      label: Midas version
+      description: Finder → Applications → Midas → Get Info, or `git rev-parse --short HEAD` in your Midas folder.
+      placeholder: 0.1.0 (ba7cb5e)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: macOS 15.5, MacBook Air M2 16 GB
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant lines from `logs/daemon.log`. For Midas.app it's in `~/Library/Application Support/Midas/logs/` (⚙︎ → Open folder). Remove anything private first.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues.
+          required: true
+        - label: I left out transcripts and other private details.
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/onurkagan/midas-meeting-copilot/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Read the FAQ
+    url: https://github.com/onurkagan/midas-meeting-copilot#faq
+    about: Answers to common questions about privacy, models and how Midas works.

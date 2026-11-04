@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an idea or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please check the [open issues](https://github.com/onurkagan/midas-meeting-copilot/issues) to see whether someone has suggested it already.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: Describe the situation in a meeting where Midas falls short today.
+      placeholder: In long meetings I lose track of the decisions made in the first half…
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+      description: How it could work, from the user's side.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Other ways to solve it, or how you work around it now.
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Midas's principles
+      description: Ideas that fit these are the easiest to accept.
+      options:
+        - label: It keeps audio and transcripts on the Mac.
+        - label: It keeps the panel invisible in screen shares.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to help build this.
