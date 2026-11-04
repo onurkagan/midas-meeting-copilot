@@ -63,7 +63,15 @@ Claude Code runs the `/midas` command as a loop. `wait_for_conversation` blocks 
 
 ## Quick start
 
-Requirements: Apple Silicon Mac, macOS 14.4+, Xcode command line tools, Python 3.11+, [Claude Code](https://docs.claude.com/claude-code).
+You need an Apple Silicon Mac with macOS 14.4 or later and a Claude account. Paste this into Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/main/install.sh | bash
+```
+
+The [installer](install.sh) sets up what's missing (Xcode command line tools, Python, [Claude Code](https://docs.claude.com/claude-code)) and asks you to sign in to Claude Code. It then downloads Midas into `~/midas-meeting-copilot`, builds it, downloads the Whisper model (~1.6 GB) and opens Midas.app from `/Applications`. Run the same command again to update; your settings and meeting logs are kept.
+
+**Manual setup:** with the Xcode command line tools, Python 3.11+ and Claude Code installed:
 
 ```bash
 git clone https://github.com/onurkagan/midas-meeting-copilot.git
