@@ -68,6 +68,7 @@ These keep Midas true to what it promises:
 
 - **Private by default.** Audio and transcripts stay on the Mac. Don't add telemetry, analytics or network calls beyond the copilot the user chose.
 - **Invisible in screen shares.** The panel must not open menus, pop-up buttons, sheets or other separate windows: macOS shares those even when the panel itself is hidden. Use inline controls, as the settings drawer does.
+- **Accessible.** Give icon-only buttons an accessibility label, don't rely on color alone, and keep new actions reachable from the keyboard. The [accessibility statement](ACCESSIBILITY.md) lists what still needs work.
 - **English** for code, comments, UI text and docs.
 - **Few dependencies.** Prefer the standard library and what's already in `requirements.txt`.
 - **Match the surrounding style:** type hints in Python, small focused functions, comments that explain why, lines up to about 120 characters.
