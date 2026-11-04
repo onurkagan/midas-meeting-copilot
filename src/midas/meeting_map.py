@@ -124,7 +124,8 @@ class MeetingMap:
         """A new topic goes on the side with fewer rows, so the map stays balanced."""
         height = {"left": 0, "right": 0}
         for topic in self._topics():
-            height[topic["side"]] += max(len(self._rows(topic["id"])), 1) + 1
+            if topic.get("side"):
+                height[topic["side"]] += max(len(self._rows(topic["id"])), 1) + 1
         return "left" if height["left"] <= height["right"] else "right"
 
     def apply(self, ops: dict, events: dict[int, dict], cursor: int) -> int:
@@ -164,7 +165,8 @@ class MeetingMap:
                 if not cited:
                     continue
                 node = {"id": self._id("t"), "type": "topic", "label": label, "sources": cited[:3]}
-                node.update(first=cited[0]["id"], time=cited[0]["time"][:5], side=self._side())
+                # Its side is chosen once its items are in (below), and then kept.
+                node.update(first=cited[0]["id"], time=cited[0]["time"][:5], side=None)
                 self.nodes[node["id"]] = node
                 keys[key] = node["id"]
                 changes += 1
@@ -200,6 +202,8 @@ class MeetingMap:
                 if item.get("key"):
                     keys[str(item["key"])] = node["id"]
                 changes += 1
+            for topic in sorted((t for t in self._topics() if not t.get("side")), key=lambda t: t["first"]):
+                topic["side"] = self._side()
             for update in ops.get("updates") or []:
                 node = self.nodes.get(str(update.get("id"))) if isinstance(update, dict) else None
                 if not node:
