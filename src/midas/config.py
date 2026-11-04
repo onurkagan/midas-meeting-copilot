@@ -4,6 +4,7 @@ import os
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 BIN_DIR = ROOT / "bin"
@@ -16,6 +17,8 @@ COPILOT_FILE = ROOT / "copilot.json"
 # thinks for 10+ s at medium effort.
 CLAUDE_MODELS = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
 CLAUDE_EFFORTS = ("low", "medium", "high", "max")
+# Who answers: Claude through Claude Code, or a local model through Ollama.
+COPILOT_PROVIDERS = ("claude", "ollama")
 
 
 @dataclass
@@ -42,10 +45,33 @@ class Config:
     # How long one idle wait lasts. Each wait that ends without a request costs a call,
     # so keep it long, but under the 1 h prompt-cache lifetime.
     idle_wait_s: int = 1500
+    # "claude", or "ollama" for a local model: nothing leaves the Mac. The panel's choice
+    # (copilot.json) wins.
+    provider: str = "claude"
+    # Ollama (https://ollama.com). Empty host: $OLLAMA_HOST, else the default local port.
+    ollama_host: str = ""
+    # Empty: the first model you have pulled. The panel's choice wins.
+    ollama_model: str = ""
+    # Context window for each answer, in tokens; the oldest lines are left out beyond it.
+    ollama_context: int = 8192
+    # How long Ollama keeps the model loaded between answers.
+    ollama_keep_alive: str = "30m"
 
     @property
     def base_url(self) -> str:
         return f"http://{self.host}:{self.port}"
+
+    @property
+    def ollama_url(self) -> str:
+        # Read like Ollama reads OLLAMA_HOST: without a scheme the port defaults to 11434,
+        # with one to the scheme's own port.
+        host = (self.ollama_host or os.environ.get("OLLAMA_HOST") or "").strip() or "127.0.0.1"
+        explicit = "://" in host
+        url = urlsplit(host if explicit else f"http://{host}")
+        port = url.port or (11434 if not explicit else 443 if url.scheme == "https" else 80)
+        # OLLAMA_HOST may name the address Ollama listens on, such as 0.0.0.0.
+        hostname = "127.0.0.1" if url.hostname in (None, "", "0.0.0.0") else url.hostname
+        return f"{url.scheme}://{hostname}:{port}"
 
 
 def load_config() -> Config:
