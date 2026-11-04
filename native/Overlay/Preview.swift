@@ -15,6 +15,7 @@ enum Preview {
             draw(empty, settings: false, dark: dark, to: folder + "/empty\(suffix).png")
             draw(sample(pending: true, local: true), settings: true, ollama: models, dark: dark, to: folder + "/ollama-settings\(suffix).png")
             draw(meetingStart, settings: false, dark: dark, to: folder + "/consent\(suffix).png")
+            draw(summarized, settings: false, dark: dark, to: folder + "/map-card\(suffix).png")
         }
     }
 
@@ -96,6 +97,27 @@ enum Preview {
             status: "listening", paused: false, speaking: false, claude: "ready", pending_request: false, partial: "",
             copilot: CopilotSettings(model: "opus", effort: "medium"), session: 1, count: events.count, events: events,
             privacy: privacy(reminder: true))
+    }()
+
+    /// The end of a meeting: the summary has come, and the timeline offers the map.
+    private static let summarized: Snapshot = {
+        let lines: [(String, String, String, String)] = [
+            ("10:24:40", "transcript", "Mert, let's add an alert for failed webhooks before Thursday.", ""),
+            ("10:25:02", "request", MidasClient.summaryRequest, ""),
+            (
+                "10:25:09", "answer",
+                "**Ship the happy path Friday**, refunds next sprint.\n- Mert: sandbox tests and the webhook alert by Thursday\n- Deniz: managed ClickHouse estimate by Tuesday\n- Open: who runs the ClickHouse cluster",
+                "Meeting summary"
+            ),
+        ]
+        let events = lines.enumerated().map { index, line in
+            MidasEvent(id: index + 40, time: line.0, kind: line.1, text: line.2, title: line.3)
+        }
+        let counts = ["topic": 4, "question": 4, "answer": 4, "decision": 3, "action": 4, "open": 3]
+        return Snapshot(
+            status: "listening", paused: false, speaking: false, claude: "ready", pending_request: false, partial: "",
+            copilot: CopilotSettings(model: "opus", effort: "medium"), session: 1, count: events.count, events: events,
+            privacy: privacy(reminder: false), map: MapInfo(version: 3, state: "idle", counts: counts))
     }()
 
     private static let models = OllamaCatalog(reachable: true, models: [
