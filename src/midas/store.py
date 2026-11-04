@@ -29,6 +29,11 @@ class Store:
         self.claude_waiting = 0
         # Set when the daemon runs the copilot itself, so the panel can offer the choice.
         self.copilot: dict | None = None
+        # A copilot that reports its own state (the local Ollama one); None means Claude,
+        # whose state follows from its waits.
+        self.copilot_state: str | None = None
+        # The answer as it is being written, for copilots that stream it.
+        self.draft = ""
         session_file.parent.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%d.%m.%Y %H:%M")
         session_file.write_text(f"# Midas meeting log — {stamp}\n\n", encoding="utf-8")
@@ -48,6 +53,8 @@ class Store:
             if kind == TRANSCRIPT:
                 self.last_final_at = now
                 self.partial = ""
+            elif kind == ANSWER:
+                self.draft = ""
             self._cond.notify_all()
         self._append_to_file(event)
         return event
@@ -57,6 +64,11 @@ class Store:
             for key, value in fields.items():
                 setattr(self, key, value)
             self._cond.notify_all()
+
+    def conversation(self) -> tuple[list[dict], str]:
+        """Every event so far and the sentence still being spoken."""
+        with self._cond:
+            return list(self._events), self.partial
 
     def recent(self, kinds: tuple[str, ...], limit: int) -> tuple[int, list[dict]]:
         with self._cond:
@@ -105,7 +117,9 @@ class Store:
         with self._cond:
             answers = [e for e in self._events if e["kind"] == ANSWER]
             requests = [e for e in self._events if e["kind"] == REQUEST]
-            if self.claude_waiting:
+            if self.copilot_state:
+                claude = self.copilot_state
+            elif self.claude_waiting:
                 claude = "ready"
             elif time.time() - self.claude_seen_at < 120:
                 claude = "thinking"
@@ -119,6 +133,7 @@ class Store:
                 "claude": claude,
                 "pending_request": pending,
                 "partial": self.partial,
+                "draft": self.draft,
                 "session_file": self.session_file.name,
                 "copilot": self.copilot,
                 "session": self.started,
