@@ -19,6 +19,7 @@ from .config import (
 )  # fmt: skip
 from .local_copilot import LocalCopilot
 from .ollama import Ollama, OllamaError
+from .privacy import panel_privacy, prune_sessions
 from .prompt import SYSTEM_PROMPT, copilot_prompt
 from .segmenter import Segment, Segmenter
 from .store import TRANSCRIPT, Store
@@ -33,8 +34,10 @@ class Daemon:
         self.copilot = copilot
         self._claude: subprocess.Popen | None = None
         self.stop = threading.Event()
+        prune_sessions(SESSIONS_DIR, config.keep_sessions_days)
         session = SESSIONS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M}.md"
         self.store = Store(session)
+        self.store.privacy = panel_privacy(config)
         self.source = FileAudio(input_file) if input_file else SystemAudio(on_status=self._audio_status)
         self.transcriber = Transcriber(config.model, config.languages, config.vocabulary)
         self.segmenter = Segmenter(
@@ -60,6 +63,8 @@ class Daemon:
             }
             if COPILOT_FILE.exists():
                 settings.update(json.loads(COPILOT_FILE.read_text()))
+            if config.local_only:
+                settings["provider"] = "ollama"
             self.store.copilot = settings
 
     def run(self):
@@ -189,6 +194,8 @@ class Daemon:
             if provider:
                 if provider not in COPILOT_PROVIDERS:
                     raise ValueError(f"provider must be one of: {', '.join(COPILOT_PROVIDERS)}")
+                if provider != "ollama" and self.config.local_only:
+                    raise ValueError("only local models may answer (local_only = true in config.toml)")
                 settings["provider"] = provider
             if model:
                 if model not in CLAUDE_MODELS:
