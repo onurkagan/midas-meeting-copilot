@@ -139,7 +139,7 @@ finish() {
 ${bold}Midas is installed.${reset}
 
   • macOS asks for "System Audio Recording" permission for midas-audio: click Allow.
-  • The panel shows and hides from the ears in the menu bar, or with ⌃⌥M.
+  • The panel shows and hides from the bubble in the menu bar, or with ⌃⌥M.
   • In a meeting, press Answer (⌃⌥A) when you want Claude to reply.
   • To update Midas later, run the same install command again.
 
