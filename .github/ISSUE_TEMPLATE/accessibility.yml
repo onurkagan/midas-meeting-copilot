@@ -1,0 +1,51 @@
+name: Accessibility barrier
+description: Something in Midas or on its website is hard or impossible to use with your setup.
+labels: ["accessibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for telling us. Barriers are bugs, and we'd like to fix them. See the [accessibility statement](https://github.com/onurkagan/midas-meeting-copilot/blob/main/ACCESSIBILITY.md) for what we support today.
+        If you'd rather not post publicly, email [onurkaganaldemir@gmail.com](mailto:onurkaganaldemir@gmail.com) instead.
+  - type: textarea
+    id: barrier
+    attributes:
+      label: What got in the way?
+      description: What you were trying to do, and what happened.
+      placeholder: VoiceOver reads the copy button on an answer as "button" without saying what it does.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The Midas panel
+        - Installing or setting up Midas
+        - The website
+        - The README or other docs
+    validations:
+      required: true
+  - type: dropdown
+    id: technology
+    attributes:
+      label: Assistive technology or setting
+      multiple: true
+      options:
+        - VoiceOver
+        - Keyboard only / Full Keyboard Access
+        - Zoom or a larger text size
+        - Increase Contrast or other display settings
+        - Voice Control
+        - Switch Control
+        - None
+        - Other (tell us above)
+  - type: textarea
+    id: expected
+    attributes:
+      label: What would work better for you?
+  - type: input
+    id: environment
+    attributes:
+      label: macOS version, Mac and Midas version (or browser, for the website)
+      placeholder: macOS 15.5, MacBook Pro M3, Midas 0.1.0
