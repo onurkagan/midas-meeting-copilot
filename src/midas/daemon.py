@@ -18,6 +18,8 @@ from .config import (
     SESSIONS_DIR, Config,
 )  # fmt: skip
 from .local_copilot import LocalCopilot
+from .map_builder import MapBuilder
+from .meeting_map import MeetingMap
 from .ollama import Ollama, OllamaError
 from .privacy import panel_privacy, prune_sessions
 from .prompt import SYSTEM_PROMPT, copilot_prompt
@@ -66,13 +68,15 @@ class Daemon:
             if config.local_only:
                 settings["provider"] = "ollama"
             self.store.copilot = settings
+        self.map = MeetingMap(session)
+        self.map_builder = MapBuilder(self.store, config, self.map, lambda: self.store.copilot or {})
 
     def run(self):
         try:
             server = api.serve(
                 self.store, self.config.host, self.config.port,
                 on_quit=self.stop.set, on_copilot=self.set_copilot, on_ollama=self.ollama_models,
-                auto_answer=self.config.auto_answer,
+                auto_answer=self.config.auto_answer, map_builder=self.map_builder,
             )  # fmt: skip
         except OSError:
             log.error("Port %d is in use; Midas may already be running (./midas stop)", self.config.port)
@@ -87,6 +91,7 @@ class Daemon:
         threading.Thread(target=self._audio_loop, name="audio", daemon=True).start()
         if self.copilot:
             threading.Thread(target=self._copilot_loop, name="copilot", daemon=True).start()
+        threading.Thread(target=self.map_builder.run, args=(self.stop,), name="map", daemon=True).start()
         log.info("session log: %s", self.store.session_file)
 
         while not self.stop.wait(1.0):

@@ -66,6 +66,13 @@ class Config:
     local_only: bool = False
     # Delete meeting logs in sessions/ older than this many days when Midas starts; 0 keeps them.
     keep_sessions_days: int = 0
+    # The meeting map: topics, questions put to you, your answers, decisions and action items.
+    # With a local model it follows the meeting by itself, at most every map_interval_s.
+    # Claude updates it only when you ask (Answer, Summary, Update map), unless auto_answer.
+    map_live: bool = True
+    map_interval_s: int = 60
+    # The Claude model for the map; a quick one is plenty.
+    map_model: str = "sonnet"
 
     @property
     def base_url(self) -> str:

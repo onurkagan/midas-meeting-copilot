@@ -44,6 +44,8 @@ class Store:
         self.draft = ""
         # The privacy settings the panel shows (see privacy.panel_privacy).
         self.privacy: dict = {}
+        # The meeting map's version, state and counts (map_builder.py), for the panel.
+        self.map_info: dict = {}
         # Seconds from a request to its answer, per copilot, for /api/health.
         self._latencies: deque[tuple[str, float]] = deque(maxlen=500)
         session_file.parent.mkdir(parents=True, exist_ok=True)
@@ -182,6 +184,7 @@ class Store:
                 "session_file": self.session_file.name,
                 "copilot": self.copilot,
                 "privacy": self.privacy,
+                "map": self.map_info,
                 "session": self.started,
                 "count": len(self._events),
                 "events": self._events[max(since, 0) :],

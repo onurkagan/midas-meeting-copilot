@@ -58,3 +58,11 @@
 # local_only = false
 # Delete meeting logs in sessions/ older than this many days when Midas starts (0 keeps them).
 # keep_sessions_days = 0
+
+# Meeting map (the panel's Map tab): topics, questions put to you, your answers, decisions and
+# action items, saved next to each meeting log. With a local model it follows the meeting by
+# itself; Claude updates it only when you ask (Answer, Summary, Update map), unless auto_answer.
+# map_live = true
+# map_interval_s = 60
+# The Claude model for the map: "sonnet", "haiku" or "opus".
+# map_model = "sonnet"
