@@ -21,14 +21,13 @@ build midas-overlay OverlayInfo.plist native/Overlay/*.swift
 codesign -s - -f --identifier dev.midas.audio bin/midas-audio 2>/dev/null
 
 echo "→ Python environment (.venv)"
-# install.sh passes the interpreter it found or installed; macOS's own python3 is too old.
-PYTHON="${MIDAS_PYTHON:-python3}"
-if ! "$PYTHON" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
-  echo "Midas needs Python 3.11 or later ($PYTHON is $("$PYTHON" --version 2>&1 || echo missing))."
-  echo "Install one, or run the one-line installer (see README), which sets Python up for you."
-  exit 1
+source scripts/python.sh
+# A working .venv is kept; a missing, broken or too old one is made again.
+if ! { [[ -x .venv/bin/python ]] && python_ok .venv/bin/python; }; then
+  ensure_python || exit 1
+  echo "  Using $("$PYTHON" --version) ($PYTHON)"
+  "$PYTHON" -m venv --clear .venv
 fi
-[[ -d .venv ]] || "$PYTHON" -m venv .venv
 .venv/bin/pip install -q --upgrade pip
 .venv/bin/pip install -q -r requirements.txt
 
