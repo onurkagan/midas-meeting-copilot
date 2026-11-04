@@ -183,7 +183,7 @@ private struct PillButtonStyle: ButtonStyle {
 }
 
 /// Summary and similar: glass with a thin rim.
-private struct SecondaryButtonStyle: ButtonStyle {
+struct SecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.tide) private var tide
 

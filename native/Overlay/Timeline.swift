@@ -22,6 +22,7 @@ struct TimelineView: View {
                     }
                     if client.pending { DraftingCard(name: client.copilotName, draft: client.draft) }
                     if !client.partial.isEmpty { LiveLine(text: client.partial) }
+                    if client.offersMap && !client.pending { MapCard(client: client) }
                     Color.clear.frame(height: 1).id(bottom)
                 }
                 .padding(.horizontal, 14)
@@ -43,6 +44,9 @@ struct TimelineView: View {
             }
             .onChange(of: client.draft) { _, _ in
                 if atBottom { proxy.scrollTo(bottom, anchor: .bottom) }
+            }
+            .onChange(of: client.offersMap) { _, offers in
+                if offers && atBottom { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottom, anchor: .bottom) } }
             }
             .onChange(of: client.pending) { _, pending in
                 if pending { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottom, anchor: .bottom) } }

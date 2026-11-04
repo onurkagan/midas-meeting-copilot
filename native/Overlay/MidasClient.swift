@@ -65,6 +65,7 @@ struct Snapshot: Decodable {
     let events: [MidasEvent]
     var draft: String? = nil  // the answer as a streaming copilot (Ollama) writes it
     var privacy: PrivacySettings? = nil
+    var map: MapInfo? = nil  // the meeting map's version and counts; nil from older daemons
 }
 
 final class MidasClient: ObservableObject {
@@ -78,6 +79,11 @@ final class MidasClient: ObservableObject {
     /// Time to remind the user to tell the others: when Midas starts, and when speech
     /// returns after a long quiet spell (a new meeting).
     @Published private(set) var noticeDue = false
+    /// The meeting map, fetched again whenever its version changes.
+    @Published private(set) var meetingMap: MeetingMapData?
+    /// From Save map until the daemon reports the map saved.
+    @Published private(set) var mapSaving = false
+    private var mapFetching = false
     private let base: URL
     private var timer: Timer?
     private var inFlight = false
@@ -128,6 +134,65 @@ final class MidasClient: ObservableObject {
         }
         self.snapshot = snapshot
         connected = true
+        if let info = snapshot.map {
+            if info.version != meetingMap?.version || info.state != meetingMap?.state { fetchMap() }
+            if mapSaving, let saved = info.saved?.version, saved == info.version { mapSaving = false }
+            if mapSaving, info.error != nil { mapSaving = false }
+        }
+    }
+
+    // MARK: Meeting map
+
+    private func fetchMap() {
+        guard !mapFetching else { return }
+        mapFetching = true
+        var request = URLRequest(url: base.appendingPathComponent("map"))
+        request.timeoutInterval = 3
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            let map = data.flatMap { try? JSONDecoder().decode(MeetingMapData.self, from: $0) }
+            DispatchQueue.main.async {
+                self.mapFetching = false
+                if let map { self.meetingMap = map }
+            }
+        }.resume()
+    }
+
+    /// For previews: a map without a daemon.
+    func show(map: MeetingMapData) { meetingMap = map }
+
+    /// Reads the lines since the last update into the map now.
+    func updateMap() { post("map", ["action": "update"]) }
+
+    /// Catches the map up, then saves it next to the meeting log.
+    func saveMap() {
+        mapSaving = true
+        post("map", ["action": "save"])
+    }
+
+    /// The user's own marks: an answer they said, an action item that's done.
+    func mark(_ node: MapNode, _ flag: String, _ value: Bool) {
+        post("map", ["action": flag, "id": node.id, "value": value])
+    }
+
+    func removeFromMap(_ node: MapNode) { post("map", ["action": "remove", "id": node.id]) }
+
+    /// The saved map's Markdown note, once Save map has run.
+    var savedMapFile: URL? {
+        guard let png = snapshot?.map?.saved?.png else { return nil }
+        return URL(fileURLWithPath: String(png.dropLast(4)) + ".map.md")
+    }
+
+    /// The meeting seems to be winding down: its summary has come, or nobody has spoken
+    /// for a few minutes. Then the timeline offers the map.
+    var offersMap: Bool {
+        guard let info = snapshot?.map, info.items > 0 else { return false }
+        if mapSaving || info.updating { return true }
+        if let request = events.last(where: { $0.kind == "request" }), request.text == Self.summaryRequest,
+           events.last?.kind == "answer", events.last!.id > request.id {
+            return true
+        }
+        guard let spoken = events.last(where: { $0.kind == "transcript" })?.ts else { return false }
+        return Date().timeIntervalSince1970 - spoken >= 180
     }
 
     /// Speech after 15 quiet minutes is most likely another meeting.
@@ -165,7 +230,9 @@ final class MidasClient: ObservableObject {
 
     func ask(_ text: String) { post("request", ["text": text]) }
 
-    func summarize() { ask("Summarize the meeting so far and list the action items.") }
+    static let summaryRequest = "Summarize the meeting so far and list the action items."
+
+    func summarize() { ask(Self.summaryRequest) }
 
     var statusLine: String {
         guard connected, let snapshot else { return "can't reach the daemon" }
