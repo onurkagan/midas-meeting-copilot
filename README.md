@@ -5,7 +5,7 @@
 <h1 align="center">Midas: open-source AI meeting copilot for Mac</h1>
 
 <p align="center">
-  <b>Live, on-device transcription of Zoom, Google Meet and Microsoft Teams calls, with answers from Claude in a panel that screen sharing can't see.</b><br>
+  <b>Live, on-device transcription of Zoom, Google Meet and Microsoft Teams calls, with answers from Claude or a local Ollama model in a panel that screen sharing can't see.</b><br>
   No bot joins the call. Audio never leaves your Mac.
 </p>
 
@@ -22,24 +22,26 @@
   <img src="https://img.shields.io/badge/Apple%20Silicon-M1%E2%80%93M4-1f2937" alt="Apple Silicon">
   <img src="https://img.shields.io/badge/Claude%20Code-MCP-d97757" alt="Claude Code over MCP">
   <img src="https://img.shields.io/badge/Whisper-on--device-10b981" alt="On-device Whisper transcription">
+  <img src="https://img.shields.io/badge/Ollama-local%20models-1f2937?logo=ollama&logoColor=white" alt="Local models with Ollama">
 </p>
 
 <p align="center">
   <img src="docs/assets/panel.png" width="420" alt="The Midas panel during a meeting: the live transcript, an answer request and Claude's suggested reply">
 </p>
 
-**Midas** is a free, open-source AI meeting assistant for macOS. It listens to whatever your Mac plays (Zoom, Google Meet, Microsoft Teams, Webex, Slack huddles…) and transcribes it in real time with Whisper, running locally on Apple Silicon. When someone asks you something, press **Answer**: Claude Code receives the conversation over MCP (the Model Context Protocol) and drafts a reply you can say out loud. The reply appears in a small floating panel that stays out of screen shares, screenshots and recordings.
+**Midas** is a free, open-source AI meeting assistant for macOS. It listens to whatever your Mac plays (Zoom, Google Meet, Microsoft Teams, Webex, Slack huddles…) and transcribes it in real time with Whisper, running locally on Apple Silicon. When someone asks you something, press **Answer**: Claude Code receives the conversation over MCP (the Model Context Protocol) and drafts a reply you can say out loud. Prefer to keep everything on your Mac? Pick a local model in [Ollama](https://ollama.com) instead. The reply appears in a small floating panel that stays out of screen shares, screenshots and recordings.
 
 ## Features
 
 - **Works with any meeting app.** Midas captures system audio, so it works with Zoom, Google Meet, Microsoft Teams, Webex, Slack, FaceTime, or a video in your browser. Nothing to install in the meeting app.
 - **No meeting bot.** Nobody sees "Notetaker joined". There's no virtual audio driver either: audio comes straight from macOS's Core Audio process tap API.
 - **Private, on-device transcription.** Whisper large-v3-turbo runs locally with MLX. Audio never leaves your Mac; only text goes to Claude, and only when you ask.
+- **Or fully local with Ollama.** Choose any model you've pulled into Ollama in the panel's settings. Answers stream in as the model writes them, and the meeting never leaves your Mac. No Claude account needed.
 - **Hidden from screen sharing.** The panel and its menu bar icon are marked `NSWindow.sharingType = .none`. The panel has no Dock icon, doesn't appear in ⌘⇥ and never takes focus from the meeting app.
 - **Answers on demand.** One press (or ⌃⌥A) and Claude replies to the latest question within seconds. **Summary** lists decisions and action items so far.
 - **One timeline.** What was said, where you asked, and Claude's reply, in one scroll, with the sentence being spoken shown live.
 - **Light on your Claude plan.** About 4k tokens of context per call and no calls until you press. A 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
-- **Your choice of model.** Opus, Sonnet or Haiku, at low to max effort, from the panel.
+- **Your choice of model.** Claude Opus, Sonnet or Haiku at low to max effort, or any local Ollama model, from the panel.
 - **Multilingual.** Turkish and English by default; any of Whisper's languages through `config.toml`.
 - **Meeting notes in Markdown.** Each transcript and Claude's replies are saved to `sessions/YYYY-MM-DD_HH-MM.md`.
 - **Answers from your codebase.** The MCP server also works inside your own repository, so Claude can answer technical questions from your code.
@@ -52,7 +54,7 @@ System audio ──► midas-audio (Swift, Core Audio tap, 16 kHz PCM)
                    ▼
               Midas daemon (Python)
               VAD → Whisper (local) → event log ──► sessions/*.md
-                   │  127.0.0.1:47821
+                   │  127.0.0.1:47821      └──► Ollama (local model, optional)
           ┌────────┴─────────┐
           ▼                  ▼
    midas-overlay        MCP bridge (stdio) ◄──► Claude Code (/midas loop)
@@ -60,6 +62,8 @@ System audio ──► midas-audio (Swift, Core Audio tap, 16 kHz PCM)
 ```
 
 Claude Code runs the `/midas` command as a loop. `wait_for_conversation` blocks until you press **Answer** in the panel, then returns everything transcribed since the last answer, plus the sentence still being spoken. Claude drafts a reply to the latest question and posts it to the panel with `show_answer`. To let Claude also suggest replies on its own, set `auto_answer = true` in `config.toml`.
+
+With **Ollama** chosen in the panel, Claude Code isn't involved: the daemon sends the transcript to the local model itself and streams the reply into the panel.
 
 ## Quick start
 
@@ -94,6 +98,16 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 - Click Midas's ears in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
 - The panel's settings (⚙︎) pick Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
 - **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
+
+### Local models with Ollama
+
+1. Install [Ollama](https://ollama.com/download) and pull a model, for example `ollama pull llama3.2`. Small models (around 3–4B parameters) answer fastest; larger ones such as `qwen3:8b` or `gemma3:12b` give better answers but take longer.
+2. In the panel's settings (⚙︎), choose **Ollama · local**, then a model from the list.
+
+- Answers appear in the timeline word by word as the model writes them. For models that can think before answering, thinking is turned off so replies come quickly.
+- Ollama keeps the model loaded for 30 minutes between answers; after that, the next answer loads it again.
+- `config.toml` sets `ollama_host` (default: `$OLLAMA_HOST` or `127.0.0.1:11434`), the default `ollama_model` and the context window `ollama_context`.
+- Claude Code isn't needed in this mode. The installer still sets it up, but you can skip signing in.
 
 ### The panel
 
@@ -159,6 +173,7 @@ To try it without a meeting: `./midas run --input recording.m4a`, then `claude` 
 | Where audio is transcribed | On your Mac | Vendor's cloud | Vendor's cloud |
 | Live answers during the call | Yes, on demand | Some | Some |
 | Panel hidden from screen sharing | Yes | — | — |
+| Works fully offline | Yes, with Ollama | No | No |
 | Open source, self-hosted | Yes (MIT) | Usually not | Usually not |
 
 Looking for an open-source alternative to tools like Cluely or Granola? Midas gives live answers in an overlay that's hidden from screen sharing and keeps meeting notes without a bot, with transcription running locally and Claude as the model.
@@ -169,7 +184,10 @@ Looking for an open-source alternative to tools like Cluely or Granola? Midas gi
 Midas never joins the meeting: there's no bot, no extra participant and no virtual microphone or speaker. The panel asks macOS to keep it out of screen capture (`NSWindow.sharingType = .none`). Whether a capture tool respects that depends on how it records the screen, so do a test share before an important meeting; sharing a single window instead of the whole screen is the safest option.
 
 **Does Midas record my meetings or upload audio?**
-No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally in `sessions/`, and text is sent to Claude only when you press **Answer** or **Summary** (or continuously if you turn on `auto_answer`).
+No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally in `sessions/`, and text is sent to Claude only when you press **Answer** or **Summary** (or continuously if you turn on `auto_answer`). With a local Ollama model, no text leaves your Mac either.
+
+**Can I use Midas without Claude, fully offline?**
+Yes. Install [Ollama](https://ollama.com), pull a model, and choose **Ollama · local** in the panel's settings. Transcription and answers then both run on your Mac.
 
 **Which languages does it understand?**
 Turkish and English by default. Whisper supports about 100 languages; set them with `languages` in `config.toml`.
@@ -178,7 +196,7 @@ Turkish and English by default. Whisper supports about 100 languages; set them w
 No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart.
 
 **What do I need to run it?**
-An Apple Silicon Mac (M1 or later) with macOS 14.4 or later, and Claude Code signed in to your Claude account. It doesn't run on Intel Macs, Windows or Linux: it relies on MLX and on Core Audio process taps, added in macOS 14.4.
+An Apple Silicon Mac (M1 or later) with macOS 14.4 or later, and either Claude Code signed in to your Claude account or Ollama with a model you've pulled. It doesn't run on Intel Macs, Windows or Linux: it relies on MLX and on Core Audio process taps, added in macOS 14.4.
 
 **How much of my Claude usage does it take?**
 By our measurements, a 30-minute meeting on Opus uses about 0.1% of a Max plan's 5-hour limit, because Claude makes a single, small call each time you press **Answer**.
