@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse, urlsplit
 
 from . import __version__
 from .config import CONTEXT_FILE
-from .store import ANSWER, REQUEST, TRANSCRIPT, Store
+from .store import ANSWER, MARKER, REQUEST, TRANSCRIPT, Store
 
 log = logging.getLogger("midas.api")
 
@@ -80,6 +80,7 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                         "session_file": str(store.session_file),
                         "context_file": str(CONTEXT_FILE),
                         "context_exists": CONTEXT_FILE.exists(),
+                        "answer_latency": store.latency(),
                     }
                 )
             elif url.path == "/api/snapshot":
@@ -92,7 +93,7 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
             elif url.path == "/api/ollama":
                 self._send(on_ollama())
             elif url.path == "/api/recent":
-                cursor, events = store.recent((TRANSCRIPT, REQUEST), int(query.get("last", 30)))
+                cursor, events = store.recent((TRANSCRIPT, REQUEST, MARKER), int(query.get("last", 30)))
                 self._send({"cursor": cursor, "events": events, "pending": store.pending_requests()})
             else:
                 self._send({"error": "not found"}, 404)
@@ -125,7 +126,7 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                         return self._send({"error": str(error)}, 400)
                 if action not in ("pause", "resume"):
                     return self._send({"error": "action must be pause, resume, copilot or quit"}, 400)
-                store.update(paused=action == "pause", partial="")
+                store.set_paused(action == "pause")
                 self._send({"paused": store.paused})
             else:
                 self._send({"error": "not found"}, 404)
