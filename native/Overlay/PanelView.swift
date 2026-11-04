@@ -28,6 +28,11 @@ struct OverlayView: View {
                     .padding(.bottom, 8)
             }
             Divider().opacity(0.3)
+            if client.noticeDue, let notices = client.snapshot?.privacy?.notices, !notices.isEmpty {
+                ConsentBanner(notices: notices, dismiss: client.dismissNotice)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 10)
+            }
             TimelineView(client: client)
             Divider().opacity(0.3)
             composer.padding(12)
@@ -44,7 +49,9 @@ struct OverlayView: View {
             Spacer(minLength: 4)
             HeaderButton(
                 symbol: client.snapshot?.paused == true ? "play.fill" : "pause.fill",
-                help: client.snapshot?.paused == true ? "Resume listening (⌃⌥P)" : "Pause listening (⌃⌥P)",
+                help: client.snapshot?.paused == true
+                    ? "Back on the record: transcribe again (⌃⌥P)"
+                    : "Go off the record: stop transcribing until you resume (⌃⌥P)",
                 action: client.togglePause)
             HeaderButton(symbol: "eye.slash", help: "Hide (⌃⌥M)", action: hide)
             HeaderButton(symbol: "gearshape", help: "Settings", active: showSettings) {
@@ -92,6 +99,16 @@ struct OverlayView: View {
             .buttonStyle(PrimaryButtonStyle())
             .disabled(!client.connected || client.pending)
             .help("Reply to what has been said so far (⌃⌥A)")
+            if client.connected {
+                let destination = client.destination
+                Label(destination.text, systemImage: destination.symbol)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(destination.local ? Brand.lightBlue.opacity(0.8) : Color.secondary)
+                    .lineLimit(1)
+                    .help(destination.local
+                        ? "A local model answers: the meeting never leaves this Mac."
+                        : "Answers come from Claude: what was said goes to Anthropic under your Claude account. Choose Ollama in ⚙︎ to keep it on this Mac.")
+            }
         }
     }
 }
@@ -158,7 +175,7 @@ private struct StatusPill: View {
     private var state: (String, Color, Bool) {
         guard client.connected, let snapshot = client.snapshot else { return ("Offline", .red, false) }
         let copilot = "\(client.copilotName) \(snapshot.claude)"
-        if snapshot.paused { return ("Paused · \(copilot)", .gray, false) }
+        if snapshot.paused { return ("Off the record · \(copilot)", .gray, false) }
         if snapshot.status == "listening" { return ("Listening · \(copilot)", Brand.blue, snapshot.speaking) }
         if snapshot.status.hasPrefix("listening") { return ("No sound · \(copilot)", .gray, false) }
         if snapshot.status.contains("error") || snapshot.status.contains("not found") {
@@ -178,6 +195,9 @@ private struct SettingsDrawer: View {
             if let copilot = client.snapshot?.copilot {
                 // Segmented controls and an inline list on purpose: pop-up menus open in
                 // separate windows that screen sharing would capture.
+                if client.snapshot?.privacy?.local_only == true {
+                    row("Copilot") { Text("Ollama · local only").foregroundStyle(.secondary) }
+                } else {
                 row("Copilot") {
                     Picker("Copilot", selection: Binding(
                         get: { copilot.isOllama ? "ollama" : "claude" },
@@ -190,9 +210,12 @@ private struct SettingsDrawer: View {
                         Text("Ollama · local").tag("ollama")
                     }
                 }
+                }
                 if copilot.isOllama {
                     OllamaModels(client: client, selected: copilot.ollama_model ?? "")
-                    note("Runs on this Mac: the meeting never leaves it. Smaller models answer faster.")
+                    note(client.snapshot?.privacy?.local_only == true
+                        ? "Claude is turned off (local_only in config.toml): the meeting never leaves this Mac."
+                        : "Runs on this Mac: the meeting never leaves it. Smaller models answer faster.")
                 } else {
                     row("Model") {
                         Picker("Model", selection: Binding(get: { copilot.model }, set: { client.setCopilot(model: $0) })) {
@@ -213,7 +236,7 @@ private struct SettingsDrawer: View {
                 }
                 Divider().opacity(0.3)
             }
-            Text("⌃⌥A  Answer     ⌃⌥M  Show / hide     ⌃⌥P  Pause")
+            Text("⌃⌥A  Answer    ⌃⌥M  Show / hide    ⌃⌥P  Off the record")
                 .font(.system(size: 10.5, design: .monospaced))
                 .foregroundStyle(.secondary)
             HStack {
@@ -332,6 +355,60 @@ private struct OllamaModels: View {
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.04)))
+    }
+}
+
+/// At the start of a meeting: a reminder to tell the others, with a message to paste into
+/// the chat. The panel stays private; the transcription shouldn't be.
+private struct ConsentBanner: View {
+    let notices: [String: String]
+    let dismiss: () -> Void
+    @State private var copied: String?
+
+    private var languages: [(key: String, label: String)] {
+        [("en", "English"), ("tr", "Türkçe"), ("custom", "Message")].filter { notices[$0.key] != nil }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "person.wave.2")
+                Text("Let the others know you're transcribing").font(.system(size: 12, weight: .semibold))
+                Spacer(minLength: 4)
+                Button(action: dismiss) {
+                    Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Done")
+                .accessibilityLabel("Dismiss the reminder")
+            }
+            .foregroundStyle(Brand.lightBlue)
+            Text("Paste this into the meeting chat, or say it out loud. Some places require everyone's consent.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                ForEach(languages, id: \.key) { language in
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(notices[language.key] ?? "", forType: .string)
+                        copied = language.key
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { dismiss() }
+                    } label: {
+                        Label(copied == language.key ? "Copied" : "Copy · \(language.label)",
+                              systemImage: copied == language.key ? "checkmark" : "doc.on.doc")
+                    }
+                    .help(notices[language.key] ?? "")
+                }
+            }
+            .controlSize(.small)
+            .font(.system(size: 11))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Brand.blue.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Brand.blue.opacity(0.35), lineWidth: 1))
     }
 }
 
