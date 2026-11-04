@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from collections.abc import Iterator
 
 import httpx
@@ -114,6 +115,51 @@ class Ollama:
             raise OllamaError(f"{model} took too long to answer.") from error
         except (httpx.HTTPError, ValueError) as error:
             raise OllamaError(f"Ollama: {error}") from error
+
+    def structured(self, model: str, messages: list[dict], schema: dict, context: int, abort) -> dict | None:
+        """A reply that follows a JSON schema, as a dict; None if `abort()` turned true
+        while the model was writing (closing the stream stops it)."""
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            "format": schema,
+            "keep_alive": self.keep_alive,
+            "options": {"num_ctx": context, "temperature": 0},
+        }
+        text = ""
+        try:
+            if "thinking" in self.capabilities(model):
+                payload["think"] = "low" if model.startswith("gpt-oss") else False
+            with self._client(300.0) as client, client.stream("POST", "/api/chat", json=payload) as response:
+                if response.status_code != 200:
+                    response.read()
+                    self._check(response, model)
+                for line in response.iter_lines():
+                    if abort():
+                        return None
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    if data.get("error"):
+                        raise OllamaError(f"Ollama: {data['error']}")
+                    text += (data.get("message") or {}).get("content") or ""
+                    if data.get("done"):
+                        break
+        except httpx.ConnectError as error:
+            raise OllamaError(self._unreachable) from error
+        except httpx.TimeoutException as error:
+            raise OllamaError(f"{model} took too long to update the map.") from error
+        except (httpx.HTTPError, ValueError) as error:
+            raise OllamaError(f"Ollama: {error}") from error
+        try:
+            # Some models still write their reasoning inline.
+            reply = json.loads(re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL))
+        except json.JSONDecodeError as error:
+            raise OllamaError(f"{model} didn't return a usable map update.") from error
+        if not isinstance(reply, dict):
+            raise OllamaError(f"{model} didn't return a usable map update.")
+        return reply
 
     def _check(self, response: httpx.Response, model: str):
         if response.status_code == 200:
