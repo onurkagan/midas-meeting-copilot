@@ -47,6 +47,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # The panel is the app's main program; it starts the daemon from MidasRoot and shows
 # itself again when the app is reopened.
 cp "$ROOT/bin/midas-overlay" "$APP/Contents/MacOS/Midas"
+# The panel's typeface, Plus Jakarta Sans (SIL Open Font License, see OFL.txt).
+mkdir -p "$APP/Contents/Resources/fonts"
+cp "$ROOT/assets/fonts/PlusJakartaSans-Variable.ttf" "$ROOT/assets/fonts/OFL.txt" "$APP/Contents/Resources/fonts/"
 
 cat >"$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
