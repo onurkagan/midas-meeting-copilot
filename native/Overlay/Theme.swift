@@ -9,7 +9,8 @@ struct Tide {
     let body: Color  // what was said
     let muted: Color  // secondary text and icons
     let faint: Color  // timestamps
-    let glass: Color  // laid over the blurred desktop
+    let glassTop: Color  // laid over the blurred desktop, light at the top…
+    let glassBottom: Color  // …turning to sea blue at the bottom
     let rim: Color  // the panel's edge
     let divider: Color
     let accent: Color  // the Answer button
@@ -30,7 +31,8 @@ struct Tide {
 
     static let light = Tide(
         ink: Color(hex: 0x0E2A3B), body: Color(hex: 0x0E2A3B), muted: Color(hex: 0x44606F), faint: Color(hex: 0x4F6B7A),
-        glass: Color(hex: 0xF6FAFC, opacity: 0.80), rim: Color.white.opacity(0.75), divider: Color(hex: 0x0E3C5A, opacity: 0.08),
+        glassTop: Color(hex: 0xF7FBFD, opacity: 0.90), glassBottom: Color(hex: 0xC4DEEC, opacity: 0.90),
+        rim: Color.white.opacity(0.75), divider: Color(hex: 0x0E3C5A, opacity: 0.08),
         accent: Color(hex: 0x1F6FB8), accentText: Color(hex: 0x1A5E9E),
         foam: Color(hex: 0x3BB3A6), foamText: Color(hex: 0x136B62), foamFill: Color(hex: 0x3BB3A6, opacity: 0.14),
         answerFill: Color(hex: 0x1F6FB8, opacity: 0.08), answerStroke: Color(hex: 0x1F6FB8, opacity: 0.22),
@@ -41,7 +43,8 @@ struct Tide {
 
     static let night = Tide(
         ink: Color(hex: 0xE8F1F7), body: Color(hex: 0xD6E4EE), muted: Color(hex: 0x9FB7C6), faint: Color(hex: 0x8FA8B8),
-        glass: Color(hex: 0x0D1B25, opacity: 0.82), rim: Color(hex: 0xA0D2F0, opacity: 0.14), divider: Color(hex: 0xA0D2F0, opacity: 0.10),
+        glassTop: Color(hex: 0x0E1C27, opacity: 0.92), glassBottom: Color(hex: 0x0C3442, opacity: 0.92),
+        rim: Color(hex: 0xA0D2F0, opacity: 0.14), divider: Color(hex: 0xA0D2F0, opacity: 0.10),
         accent: Color(hex: 0x1F6FB8), accentText: Color(hex: 0x8CCBF5),
         foam: Color(hex: 0x5ED1C2), foamText: Color(hex: 0x8EE3D7), foamFill: Color(hex: 0x5ED1C2, opacity: 0.14),
         answerFill: Color(hex: 0x4A9BE0, opacity: 0.12), answerStroke: Color(hex: 0x7CC4F2, opacity: 0.28),
@@ -51,6 +54,11 @@ struct Tide {
         quiet: Color.white.opacity(0.06), quietText: Color(hex: 0xB5C9D6))
 
     static func of(_ scheme: ColorScheme) -> Tide { scheme == .dark ? night : light }
+
+    /// The panel's glass: light at the top, sea blue toward the bottom.
+    var glass: LinearGradient {
+        LinearGradient(colors: [glassTop, glassBottom], startPoint: .top, endPoint: .bottom)
+    }
 
     /// Plus Jakarta Sans, falling back to the system font if it couldn't be loaded.
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
