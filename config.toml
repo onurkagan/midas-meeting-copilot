@@ -66,3 +66,6 @@
 # map_interval_s = 60
 # The Claude model for the map: "sonnet", "haiku" or "opus".
 # map_model = "sonnet"
+# Action items not done and questions left open in your last meeting come over to the new map,
+# if it was within this many days (0: off).
+# carry_over_days = 14

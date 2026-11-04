@@ -69,6 +69,8 @@ class Daemon:
                 settings["provider"] = "ollama"
             self.store.copilot = settings
         self.map = MeetingMap(session)
+        if carried := self.map.carry_over(SESSIONS_DIR, config.carry_over_days):
+            log.info("map: %d open item(s) carried over from the last meeting", carried)
         self.map_builder = MapBuilder(self.store, config, self.map, lambda: self.store.copilot or {})
 
     def run(self):

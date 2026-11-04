@@ -228,6 +228,41 @@ class MeetingMap:
                 self._changed()
             return changes
 
+    def carry_over(self, folder: Path, days: int) -> int:
+        """Puts what the last meeting left open (action items not done, open questions) on
+        this map, under a topic of its own, if that meeting was within `days`. Returns how
+        many items came over. They stay until they're done or removed, meeting to meeting."""
+        if days <= 0 or not folder.is_dir():
+            return 0
+        cutoff = time.time() - days * 86400
+        previous = sorted(p for p in folder.glob("*.map.json") if p != self.json_path and p.stat().st_mtime >= cutoff)
+        if not previous:
+            return 0
+        try:
+            data = json.loads(previous[-1].read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return 0
+        left = [
+            n for n in data.get("nodes", [])
+            if (n.get("type") == "action" and not n.get("done")) or (n.get("type") == "open" and n.get("sub") == "Open question")
+        ]  # fmt: skip
+        if not left:
+            return 0
+        meeting = previous[-1].name.removesuffix(".map.json")
+        title = data.get("title") or "the last meeting"
+        with self._lock:
+            topic = {"id": self._id("t"), "type": "topic", "label": clean(f"Open from {title}", 40), "sources": []}
+            topic.update(first=0, time=meeting[-5:].replace("-", ":"), side="left", carried=meeting)
+            self.nodes[topic["id"]] = topic
+            for item in left:
+                node = {key: item[key] for key in ("type", "label", "sources", "time", "sub", "owner", "due") if key in item}
+                node.update(id=self._id("n"), topic=topic["id"], first=0, carried=meeting)
+                if node["type"] == "action":
+                    node["done"] = False
+                self.nodes[node["id"]] = node
+            self._changed()
+        return len(left)
+
     def set(self, node_id: str, **flags) -> bool:
         """The user's own marks: an answer they said, an action item that's done."""
         allowed = {"answer": "said", "action": "done"}
@@ -393,10 +428,15 @@ class MeetingMap:
 
             def action(n):
                 who = " · ".join(v for v in (n.get("owner"), n.get("due")) if v)
-                return f"- [{'x' if n.get('done') else ' '}] {n['label']}" + (f" ({who})" if who else "")
+                since = " · from an earlier meeting" if n.get("carried") else ""
+                return f"- [{'x' if n.get('done') else ' '}] {n['label']}" + (f" ({who})" if who else "") + since
+
+            def open_point(n):
+                since = ", from an earlier meeting" if n.get("carried") else ""
+                return f"- {n.get('sub', 'Open')}: {n['label']} ({n['time']}{since})"
 
             section("Action items", "action", action)
-            section("Open questions and risks", "open", lambda n: f"- {n.get('sub', 'Open')}: {n['label']} ({n['time']})")
+            section("Open questions and risks", "open", open_point)
             questions = sorted((n for n in self.nodes.values() if n["type"] == "question"), key=lambda n: n["first"])
             if questions:
                 out += ["## Questions you were asked", ""]

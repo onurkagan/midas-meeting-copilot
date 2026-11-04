@@ -73,6 +73,9 @@ class Config:
     map_interval_s: int = 60
     # The Claude model for the map; a quick one is plenty.
     map_model: str = "sonnet"
+    # Action items not done and questions left open in your last meeting come over to the
+    # new map, if that meeting was within this many days; 0 turns it off.
+    carry_over_days: int = 14
 
     @property
     def base_url(self) -> str:
