@@ -35,7 +35,9 @@ def refusal(method: str, headers, allowed_hosts: set[str]) -> tuple[int, str] | 
     return None
 
 
-def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool) -> ThreadingHTTPServer:
+def serve(
+    store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool, map_builder=None
+) -> ThreadingHTTPServer:
     allowed_hosts = LOOPBACK | {host}
     reported: set[str] = set()
 
@@ -92,6 +94,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                 self._send({"cursor": cursor, "events": events, "partial": partial, "auto": auto_answer})
             elif url.path == "/api/ollama":
                 self._send(on_ollama())
+            elif url.path == "/api/map" and map_builder:
+                self._send(map_builder.map.to_dict())
             elif url.path == "/api/recent":
                 cursor, events = store.recent((TRANSCRIPT, REQUEST, MARKER), int(query.get("last", 30)))
                 self._send({"cursor": cursor, "events": events, "pending": store.pending_requests()})
@@ -113,6 +117,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                 self._send(store.add(ANSWER, text, str(body.get("title", "")).strip()))
             elif url.path == "/api/request":
                 self._send(store.add(REQUEST, str(body.get("text", "")).strip()))
+            elif url.path == "/api/map" and map_builder:
+                self._map_action(body)
             elif url.path == "/api/control":
                 action = body.get("action")
                 if action == "quit":
@@ -130,6 +136,24 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                 self._send({"paused": store.paused})
             else:
                 self._send({"error": "not found"}, 404)
+
+        def _map_action(self, body: dict):
+            """update: catch the map up now; save: also write the Canvas (the panel adds
+            the picture); said/done: the user's marks; remove: take an item off."""
+            action, node = body.get("action"), str(body.get("id", ""))
+            if action == "update":
+                map_builder.update()
+            elif action == "save":
+                map_builder.export()
+            elif action in ("said", "done"):
+                if not map_builder.set(node, **{action: bool(body.get("value", True))}):
+                    return self._send({"error": f"no {action} mark for {node!r}"}, 400)
+            elif action == "remove":
+                if not map_builder.remove(node):
+                    return self._send({"error": f"no item {node!r}"}, 400)
+            else:
+                return self._send({"error": "action must be update, save, said, done or remove"}, 400)
+            self._send(map_builder.map.summary())
 
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
