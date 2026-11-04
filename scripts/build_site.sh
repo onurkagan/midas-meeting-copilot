@@ -20,7 +20,12 @@ PREVIEW="$(mktemp -d)"
 trap 'rm -rf "$PREVIEW"' EXIT
 "$ROOT/bin/midas-overlay" --render-preview "$PREVIEW"
 cp "$PREVIEW/meeting.png" "$OUT/panel.png"
+cp "$PREVIEW/meeting-dark.png" "$OUT/panel-dark.png"
 cp "$PREVIEW/drafting-settings.png" "$OUT/panel-settings.png"
+cp "$PREVIEW/drafting-settings-dark.png" "$OUT/panel-settings-dark.png"
+# The site serves its own copy of the font, so visitors don't load it from Google.
+mkdir -p "$OUT/fonts"
+cp "$ROOT/assets/fonts/PlusJakartaSans-Variable.ttf" "$ROOT/assets/fonts/OFL.txt" "$OUT/fonts/"
 
 # Social preview card (GitHub "Social preview" and the site's og:image).
 "$CHROME" --headless --hide-scrollbars --force-device-scale-factor=1 --force-color-profile=srgb \
