@@ -1,10 +1,13 @@
-"""Local HTTP API (127.0.0.1 only) used by the MCP bridge and the overlay."""
+"""Local HTTP API (127.0.0.1 only) used by the MCP bridge and the overlay.
+
+Only programs on this Mac may use it, never web pages: a site open in the browser could
+otherwise send commands to 127.0.0.1, or read the meeting through DNS rebinding."""
 
 import json
 import logging
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlsplit
 
 from . import __version__
 from .config import CONTEXT_FILE
@@ -12,11 +15,43 @@ from .store import ANSWER, REQUEST, TRANSCRIPT, Store
 
 log = logging.getLogger("midas.api")
 
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+
+
+def refusal(method: str, headers, allowed_hosts: set[str]) -> tuple[int, str] | None:
+    """(status, reason) when a request must be refused, else None. Browsers mark their
+    requests with Origin or Sec-Fetch-Site (except for an address the user typed in), and
+    a cross-site page can't send JSON without a CORS preflight, which this server never
+    allows. A Host naming another machine means DNS rebinding."""
+    host = urlsplit(f"//{headers.get('Host', '')}").hostname or ""
+    if host and host not in allowed_hosts:
+        return 403, f"host {host!r} isn't this Mac"
+    origin, site = headers.get("Origin"), headers.get("Sec-Fetch-Site")
+    if origin is not None or (site and site != "none"):
+        return 403, f"request from a web page ({origin or site})"
+    content_type = (headers.get("Content-Type") or "").split(";")[0].strip().lower()
+    if method == "POST" and content_type != "application/json":
+        return 415, "POST bodies must be application/json"
+    return None
+
 
 def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool) -> ThreadingHTTPServer:
+    allowed_hosts = LOOPBACK | {host}
+    reported: set[str] = set()
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
+
+        def _refused(self) -> bool:
+            if not (problem := refusal(self.command, self.headers, allowed_hosts)):
+                return False
+            status, reason = problem
+            if reason not in reported:  # once each, so a page can't flood the log
+                reported.add(reason)
+                log.warning("refused %s %s: %s", self.command, self.path.split("?")[0], reason)
+            self._send({"error": f"refused: {reason}"}, status)
+            return True
 
         def _send(self, payload: dict, status: int = 200):
             body = json.dumps(payload, ensure_ascii=False).encode()
@@ -31,6 +66,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
             return json.loads(self.rfile.read(length) or b"{}")
 
         def do_GET(self):
+            if self._refused():
+                return
             url = urlparse(self.path)
             query = {k: v[-1] for k, v in parse_qs(url.query).items()}
             if url.path == "/api/health":
@@ -61,6 +98,8 @@ def serve(store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, au
                 self._send({"error": "not found"}, 404)
 
         def do_POST(self):
+            if self._refused():
+                return
             url = urlparse(self.path)
             try:
                 body = self._body()
