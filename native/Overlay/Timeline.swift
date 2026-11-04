@@ -2,9 +2,10 @@ import AppKit
 import SwiftUI
 
 /// The whole meeting in one scroll, oldest first: what was said, when you asked for an
-/// answer, and Claude's answers right where you asked for them.
+/// answer, and the copilot's answers right where you asked for them.
 struct TimelineView: View {
     @ObservedObject var client: MidasClient
+    @Environment(\.tide) private var tide
     @State private var atBottom = true
     @State private var unseen = false
     private let bottom = "bottom"
@@ -12,7 +13,7 @@ struct TimelineView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: 7) {
                     if client.events.isEmpty && client.partial.isEmpty {
                         EmptyTimeline().padding(.top, 48)
                     }
@@ -23,14 +24,14 @@ struct TimelineView: View {
                     if !client.partial.isEmpty { LiveLine(text: client.partial) }
                     Color.clear.frame(height: 1).id(bottom)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 14)
                 .padding(.vertical, 10)
             }
             .modifier(BottomTracker(atBottom: $atBottom))
             .onAppear { proxy.scrollTo(bottom, anchor: .bottom) }
             .onChange(of: client.events.last?.id) { _, _ in
                 // Follow the conversation while you're at the bottom; your requests and
-                // Claude's answers always come into view.
+                // the copilot's answers always come into view.
                 if atBottom || client.events.last?.kind != "transcript" {
                     withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(bottom, anchor: .bottom) }
                 } else {
@@ -56,10 +57,10 @@ struct TimelineView: View {
                         unseen = false
                     } label: {
                         Label("New", systemImage: "arrow.down")
-                            .font(.system(size: 11, weight: .semibold))
-                            .padding(.horizontal, 10)
+                            .font(Tide.font(11, .bold))
+                            .padding(.horizontal, 11)
                             .padding(.vertical, 5)
-                            .background(Capsule().fill(Brand.blue))
+                            .background(Capsule().fill(tide.accent).shadow(color: tide.accent.opacity(0.3), radius: 6, y: 3))
                             .foregroundStyle(.white)
                     }
                     .buttonStyle(.plain)
@@ -114,12 +115,14 @@ func markdown(_ text: String) -> AttributedString {
 
 private struct TimeLabel: View {
     let text: String
+    @Environment(\.tide) private var tide
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, design: .monospaced))
-            .foregroundStyle(.tertiary)
-            .frame(width: 34, alignment: .leading)
+            .font(Tide.font(10.5, .medium))
+            .monospacedDigit()
+            .foregroundStyle(tide.faint)
+            .frame(width: 36, alignment: .leading)
     }
 }
 
@@ -127,35 +130,38 @@ private struct TimeLabel: View {
 struct TranscriptLine: View {
     let event: MidasEvent
     let showTime: Bool
+    @Environment(\.tide) private var tide
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             TimeLabel(text: showTime ? event.minute : "")
             Text(event.text)
-                .font(.system(size: 12.5))
-                .foregroundStyle(Color.white.opacity(0.82))
+                .font(Tide.font(13))
+                .foregroundStyle(tide.body)
+                .lineSpacing(1.5)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
-/// Where you pressed Answer or asked Claude something.
+/// Where you pressed Answer or asked the copilot something.
 struct RequestMarker: View {
     let event: MidasEvent
+    @Environment(\.tide) private var tide
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(systemName: event.text.isEmpty ? "sparkles" : "text.bubble")
             Text(event.text.isEmpty ? "You asked for an answer" : event.text)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(event.minute).foregroundStyle(.tertiary)
+            Text(event.minute).foregroundStyle(tide.faint)
         }
-        .font(.system(size: 11.5, weight: .medium))
-        .foregroundStyle(Brand.lightBlue)
-        .padding(.horizontal, 10)
+        .font(Tide.font(11.5, .semibold))
+        .foregroundStyle(tide.foamText)
+        .padding(.horizontal, 11)
         .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Brand.blue.opacity(0.15)))
+        .background(RoundedRectangle(cornerRadius: 13).fill(tide.foamFill))
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.top, 4)
     }
@@ -164,27 +170,29 @@ struct RequestMarker: View {
 /// Where you went off the record (⌃⌥P) and came back: nothing in between was transcribed.
 struct RecordMarker: View {
     let event: MidasEvent
+    @Environment(\.tide) private var tide
 
     var body: some View {
         let off = event.text.hasPrefix("Off")
         HStack(spacing: 6) {
             Image(systemName: off ? "pause.circle" : "play.circle")
             Text(off ? "Off the record · not transcribing" : "Back on the record")
-            Text(event.minute).foregroundStyle(.tertiary)
+            Text(event.minute).foregroundStyle(tide.faint)
         }
-        .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 10)
+        .font(Tide.font(11, .semibold))
+        .foregroundStyle(tide.quietText)
+        .padding(.horizontal, 11)
         .padding(.vertical, 4)
-        .background(Capsule().fill(Color.white.opacity(0.06)))
+        .background(Capsule().fill(tide.quiet))
         .frame(maxWidth: .infinity)
         .padding(.vertical, 4)
     }
 }
 
-/// Claude's reply, ready to say out loud.
+/// The copilot's reply, ready to say out loud.
 struct AnswerCard: View {
     let event: MidasEvent
+    @Environment(\.tide) private var tide
     @State private var copied = false
 
     var body: some View {
@@ -192,10 +200,10 @@ struct AnswerCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "sparkles")
                 Text(event.title.isEmpty ? "Suggested answer" : event.title)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(Tide.font(13.5, .bold))
                     .lineLimit(2)
                 Spacer(minLength: 4)
-                Text(event.minute).font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
+                Text(event.minute).font(Tide.font(10.5, .medium)).monospacedDigit().foregroundStyle(tide.faint)
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(event.text, forType: .string)
@@ -205,21 +213,22 @@ struct AnswerCard: View {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(tide.muted)
                 .help("Copy")
+                .accessibilityLabel("Copy the answer")
             }
-            .foregroundStyle(Brand.lightBlue)
+            .foregroundStyle(tide.accentText)
             Text(markdown(event.text))
-                .font(.system(size: 13.5))
-                .foregroundStyle(.white)
-                .lineSpacing(2)
+                .font(Tide.font(13.5))
+                .foregroundStyle(tide.answerBody)
+                .lineSpacing(2.5)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
+        .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Brand.blue.opacity(0.18)))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Brand.blue.opacity(0.5), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 16).fill(tide.answerFill))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(tide.answerStroke, lineWidth: 1))
         .padding(.vertical, 4)
     }
 }
@@ -229,28 +238,29 @@ struct AnswerCard: View {
 struct DraftingCard: View {
     let name: String
     let draft: String
+    @Environment(\.tide) private var tide
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 Text(draft.isEmpty ? "\(name) is drafting an answer…" : "\(name) is writing…")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(.secondary)
+                    .font(Tide.font(12.5, .medium))
+                    .foregroundStyle(tide.muted)
             }
             if !draft.isEmpty {
                 Text(markdown(draft))
-                    .font(.system(size: 13.5))
-                    .foregroundStyle(Color.white.opacity(0.9))
-                    .lineSpacing(2)
+                    .font(Tide.font(13.5))
+                    .foregroundStyle(tide.answerBody.opacity(0.9))
+                    .lineSpacing(2.5)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(12)
+        .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Brand.blue.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(tide.answerStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
         .padding(.vertical, 4)
     }
 }
@@ -258,40 +268,45 @@ struct DraftingCard: View {
 /// The sentence still being spoken.
 struct LiveLine: View {
     let text: String
+    @Environment(\.tide) private var tide
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            PulsingDot().frame(width: 34, alignment: .leading)
+            PulsingDot(color: tide.foam).frame(width: 36, alignment: .leading)
             Text(text + " …")
-                .font(.system(size: 12.5).italic())
-                .foregroundStyle(.secondary)
+                .font(Tide.font(13).italic())
+                .foregroundStyle(tide.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
+/// A calm pulse with a soft ripple, like a buoy light.
 struct PulsingDot: View {
-    var color = Brand.blue
+    var color: Color
     @State private var dim = false
 
     var body: some View {
         Circle()
             .fill(color)
             .frame(width: 7, height: 7)
-            .opacity(dim ? 0.3 : 1)
-            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: dim)
+            .background(Circle().fill(color.opacity(0.22)).frame(width: 15, height: 15).scaleEffect(dim ? 1 : 0.6))
+            .opacity(dim ? 0.55 : 1)
+            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: dim)
             .onAppear { dim = true }
     }
 }
 
 struct EmptyTimeline: View {
+    @Environment(\.tide) private var tide
+
     var body: some View {
         VStack(spacing: 10) {
-            Image(nsImage: EarsArt.glyph(size: 44)).renderingMode(.template).foregroundStyle(Brand.blue)
-            Text("Listening to the meeting").font(.system(size: 14, weight: .semibold))
+            MidasMark(size: 46)
+            Text("Listening to the meeting").font(Tide.font(14.5, .bold)).foregroundStyle(tide.ink)
             Text("Everything said appears here as it's transcribed.\nWhen you need a reply, press Answer (⌃⌥A).")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .font(Tide.font(12))
+                .foregroundStyle(tide.muted)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
