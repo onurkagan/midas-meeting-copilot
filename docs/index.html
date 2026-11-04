@@ -190,7 +190,15 @@
           "name": "Is it legal to transcribe a meeting?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Rules on recording and transcribing conversations differ by country and state, and some require everyone's consent. Tell the other participants when your situation calls for it."
+            "text": "Rules differ by country and state, and many require everyone's consent. Tell the other participants: Midas reminds you at the start of each meeting and copies a message for the chat. The repository has templates for a meeting notice, a privacy notice and a consent form. This isn't legal advice."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use Midas in a job interview or an exam?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Only where AI help is clearly allowed. Don't use Midas in interviews, exams, certifications or assessments that forbid outside help. Its panel stays off screen shares to keep your notes private, not to deceive anyone."
           }
         }
       ]
@@ -472,7 +480,7 @@
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></svg></div>
           <h3>No meeting bot</h3>
-          <p>Nobody sees "Notetaker joined". Midas captures system audio with macOS's Core Audio process tap, without a virtual audio driver.</p>
+          <p>Nothing joins the call: Midas captures system audio with macOS's Core Audio process tap, without a virtual audio driver. It reminds you to tell the others, with a message ready for the chat.</p>
         </article>
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2"/></svg></div>
@@ -481,8 +489,8 @@
         </article>
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg></div>
-          <h3>Hidden from screen sharing</h3>
-          <p>The panel is excluded from screen capture, has no Dock icon, stays out of ⌘⇥ and never takes focus from the meeting app.</p>
+          <h3>Private panel, open about it</h3>
+          <p>Your notes and drafts stay off screen shares: no Dock icon, not in ⌘⇥, never taking focus. Midas hides your notes, not the fact that you're transcribing.</p>
         </article>
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg></div>
@@ -575,7 +583,7 @@
           </tbody>
         </table>
       </div>
-      <p class="note">Looking for an open-source alternative to tools like Cluely or Granola? Midas gives live answers in an overlay that's hidden from screen sharing and keeps meeting notes without a bot, with transcription running locally and Claude as the model.</p>
+      <p class="note">Looking for an open-source alternative to tools like Granola or Otter? Midas transcribes on your Mac without a bot, keeps meeting notes as Markdown files, and drafts live answers with Claude or a local model.</p>
     </div>
   </section>
 
@@ -645,7 +653,11 @@
         </details>
         <details>
           <summary>Is it legal to transcribe a meeting?</summary>
-          <p>Rules on recording and transcribing conversations differ by country and state, and some require everyone's consent. Tell the other participants when your situation calls for it.</p>
+          <p>Rules differ by country and state, and many require everyone's consent. Tell the other participants: Midas reminds you at the start of each meeting and copies a message for the chat. The repository has templates for a meeting notice, a privacy notice and a consent form. This isn't legal advice.</p>
+        </details>
+        <details>
+          <summary>Can I use Midas in a job interview or an exam?</summary>
+          <p>Only where AI help is clearly allowed. Don't use Midas in interviews, exams, certifications or assessments that forbid outside help. Its panel stays off screen shares to keep your notes private, not to deceive anyone.</p>
         </details>
       </div>
     </div>
