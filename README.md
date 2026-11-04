@@ -143,6 +143,41 @@ Then start the Midas daemon (`./midas run` or `./midas start`), open `claude` in
 
 To try it without a meeting: `./midas run --input recording.m4a`, then `claude` → `/midas` in another terminal.
 
+## How Midas compares
+
+| | Midas | Meeting bots | Cloud note-takers |
+| --- | --- | --- | --- |
+| Joins the call as a participant | No | Yes | Varies |
+| Where audio is transcribed | On your Mac | Vendor's cloud | Vendor's cloud |
+| Live answers during the call | Yes, on demand | Some | Some |
+| Panel hidden from screen sharing | Yes | — | — |
+| Open source, self-hosted | Yes (MIT) | Usually not | Usually not |
+
+Looking for an open-source alternative to tools like Cluely or Granola? Midas gives live answers in an overlay that's hidden from screen sharing and keeps meeting notes without a bot, with transcription running locally and Claude as the model.
+
+## FAQ
+
+**Can other participants see Midas in Zoom, Google Meet or Microsoft Teams?**
+Midas never joins the meeting: there's no bot, no extra participant and no virtual microphone or speaker. The panel asks macOS to keep it out of screen capture (`NSWindow.sharingType = .none`). Whether a capture tool respects that depends on how it records the screen, so do a test share before an important meeting; sharing a single window instead of the whole screen is the safest option.
+
+**Does Midas record my meetings or upload audio?**
+No. Audio is transcribed in memory on your Mac and isn't saved or uploaded. The text transcript is saved locally in `sessions/`, and text is sent to Claude only when you press **Answer** or **Summary** (or continuously if you turn on `auto_answer`).
+
+**Which languages does it understand?**
+Turkish and English by default. Whisper supports about 100 languages; set them with `languages` in `config.toml`.
+
+**Does it transcribe my own voice?**
+No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart.
+
+**What do I need to run it?**
+An Apple Silicon Mac (M1 or later) with macOS 14.4 or later, and Claude Code signed in to your Claude account. It doesn't run on Intel Macs, Windows or Linux: it relies on MLX and on Core Audio process taps, added in macOS 14.4.
+
+**How much of my Claude usage does it take?**
+By our measurements, a 30-minute meeting on Opus uses about 0.1% of a Max plan's 5-hour limit, because Claude makes a single, small call each time you press **Answer**.
+
+**Is it legal to transcribe a meeting?**
+Rules on recording and transcribing conversations differ by country and state, and some require everyone's consent. Tell the other participants when your situation calls for it.
+
 ## Limitations
 
 - Only system audio is captured, so your own voice isn't in the transcript; Claude hears only the other participants. Speakers aren't told apart.
