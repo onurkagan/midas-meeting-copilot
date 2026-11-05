@@ -8,6 +8,7 @@ Midas listens to meetings, so this page says exactly what it keeps, where text g
 |---|---|---|
 | **Audio** | Only in memory, while Whisper transcribes it | Never written to disk, never sent anywhere |
 | **Transcript, your requests and the answers** | `sessions/YYYY-MM-DD_HH-MM.md`, one Markdown file per run | Until you delete it, or for `keep_sessions_days` days |
+| **The meeting map** (topics, decisions, action items, with the lines they came from) | Beside the log: `.map.json`, `.map.md`, and after **Save map** `.canvas` and `.png` | Deleted with the log; open items come over to your next map for `carry_over_days` days |
 | **Transcript lines in the log** | `logs/daemon.log` | Replaced each time Midas starts |
 | **Your notes for the copilot** | `context.md` | Until you change it |
 | **Panel settings** | `copilot.json` | Until you change them |
@@ -22,11 +23,13 @@ For Midas.app these files are in `~/Library/Application Support/Midas` (⚙︎ �
 - what was said since the last answer, when you press **Answer** or **Summary** or type a request;
 - continuously, as people speak, if you turn on `auto_answer`;
 - up to the last 30 lines and any unanswered request when its session starts or restarts, for example after you change the model;
-- your `context.md`.
+- for the meeting map, the lines since its last update, after each answer you ask for and when you press **Update** or **Save map** (continuously only with `auto_answer`);
+- your `context.md`;
+- past meetings' maps and logs, only when Claude looks them up for a request of yours (`search_meetings`, `get_meeting`).
 
 The line under the **Answer** button always says which copilot answers.
 
-**With the Ollama copilot**, the text goes only to the Ollama server set in `config.toml`, which by default is Ollama on your own Mac (`127.0.0.1:11434`). Nothing leaves your Mac. Set `local_only = true` to make sure Claude can't be chosen or read the meeting.
+**With the Ollama copilot**, the text goes only to the Ollama server set in `config.toml`, which by default is Ollama on your own Mac (`127.0.0.1:11434`). Nothing leaves your Mac, and the local model keeps the meeting map too. Set `local_only = true` to make sure Claude can't be chosen or read the meeting, its map or past meetings.
 
 **Nothing else.** Once the Whisper model is downloaded, Midas makes no other network requests of its own. Setup downloads that model from Hugging Face, and the installer downloads Python, Claude Code and Midas itself. Claude Code and Ollama are separate programs with their own privacy policies.
 
