@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Renders the images of the project site (docs/, served by GitHub Pages) and the README:
-# icon sizes, panel screenshots from sample data, and the 1280×640 social preview card.
+# icon sizes, panel and meeting map pictures from sample data, and the 1280×640 social preview card.
 # Needs bin/midas-overlay (./midas setup) and Google Chrome.
 set -euo pipefail
 
@@ -23,6 +23,8 @@ cp "$PREVIEW/meeting.png" "$OUT/panel.png"
 cp "$PREVIEW/meeting-dark.png" "$OUT/panel-dark.png"
 cp "$PREVIEW/drafting-settings.png" "$OUT/panel-settings.png"
 cp "$PREVIEW/drafting-settings-dark.png" "$OUT/panel-settings-dark.png"
+cp "$PREVIEW/map-picture.png" "$OUT/map.png"
+cp "$PREVIEW/map-picture-dark.png" "$OUT/map-dark.png"
 # The site serves its own copy of the font, so visitors don't load it from Google.
 mkdir -p "$OUT/fonts"
 cp "$ROOT/assets/fonts/PlusJakartaSans-Variable.ttf" "$ROOT/assets/fonts/OFL.txt" "$OUT/fonts/"

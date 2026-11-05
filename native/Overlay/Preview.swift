@@ -19,7 +19,12 @@ enum Preview {
             draw(summarized, settings: false, map: sampleMap, dark: dark, to: folder + "/map-tab\(suffix).png")
             drawWindow(dark: dark, to: folder + "/map-window\(suffix).png")
         }
-        if let map = sampleMap { _ = MainActor.assumeIsolated { MapPicture.write(map, to: folder + "/map-picture.png") } }
+        if let map = sampleMap {
+            MainActor.assumeIsolated {
+                _ = MapPicture.write(map, to: folder + "/map-picture.png")
+                _ = MapPicture.write(map, to: folder + "/map-picture-dark.png", dark: true)
+            }
+        }
     }
 
     /// The full-map window with an answer selected.

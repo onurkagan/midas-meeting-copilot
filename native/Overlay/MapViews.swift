@@ -246,15 +246,16 @@ struct MapGraph: View {
     }
 }
 
-/// The picture Save map writes next to the meeting log (Tide by day, at twice the size).
+/// The picture Save map writes next to the meeting log (Tide by day, at twice the size);
+/// the site uses it at night too.
 enum MapPicture {
     @MainActor
-    static func write(_ map: MeetingMapData, to path: String) -> Bool {
+    static func write(_ map: MeetingMapData, to path: String, dark: Bool = false) -> Bool {
         let view = MapGraph(map: map)
             .padding(28)
-            .background(Color(hex: 0xF2F7FA))
-            .environment(\.tide, Tide.light)
-            .environment(\.colorScheme, .light)
+            .background(Color(hex: dark ? 0x07141D : 0xF2F7FA))
+            .environment(\.tide, dark ? Tide.night : Tide.light)
+            .environment(\.colorScheme, dark ? .dark : .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
