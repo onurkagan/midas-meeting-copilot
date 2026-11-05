@@ -72,7 +72,8 @@
       "image": "https://onurkagan.github.io/midas-meeting-copilot/assets/icon-512.png",
       "screenshot": [
         "https://onurkagan.github.io/midas-meeting-copilot/assets/panel.png",
-        "https://onurkagan.github.io/midas-meeting-copilot/assets/panel-settings.png"
+        "https://onurkagan.github.io/midas-meeting-copilot/assets/panel-settings.png",
+        "https://onurkagan.github.io/midas-meeting-copilot/assets/map.png"
       ],
       "featureList": [
         "Real-time meeting transcription on device with Whisper large-v3-turbo (MLX)",
@@ -82,7 +83,9 @@
         "On-demand answers and meeting summaries from Claude via Claude Code and MCP",
         "Fully local answers from Ollama models, streamed as they are written",
         "Choice of Claude model and effort",
-        "Meeting notes saved as Markdown"
+        "Meeting notes saved as Markdown",
+        "Meeting map of topics, questions, answers, decisions and action items, saved as Markdown, JSON Canvas and PNG",
+        "Open action items carried over to the next meeting, and search across past meetings over MCP"
       ],
       "author": {
         "@type": "Person",
@@ -467,6 +470,7 @@
     <a class="logo" href="./" aria-label="Midas home"><img src="assets/icon-64.png" width="32" height="32" alt="">Midas</a>
     <div class="nav-links">
       <a href="#features">Features</a>
+      <a href="#map">Meeting map</a>
       <a href="#how-it-works">How it works</a>
       <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
@@ -561,10 +565,31 @@
         <span class="pill">One timeline</span>
         <span class="pill">Turkish, English and more</span>
         <span class="pill">Meeting notes in Markdown</span>
+        <span class="pill">Search past meetings</span>
         <span class="pill">Answers from your codebase</span>
         <span class="pill">Menu bar app</span>
         <span class="pill">Global hotkeys</span>
       </div>
+    </div>
+  </section>
+
+  <section id="map" aria-labelledby="map-title">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Meeting map</span>
+        <h2 id="map-title">The whole meeting at a glance</h2>
+        <p>The Map tab gathers the topics, the questions put to you, your answers, decisions and action items as the meeting goes, each tied to the line it came from. Save it as Markdown, a JSON Canvas for Obsidian or a picture. Whatever is left open comes over to your next meeting.</p>
+      </div>
+      <figure>
+        <div class="frame">
+          <picture>
+            <source srcset="assets/map-dark.png" media="(prefers-color-scheme: dark)">
+            <img src="assets/map.png" width="1096" height="576" loading="lazy" decoding="async"
+                 alt="A meeting map: four topics around the meeting (payments launch, analytics database, launch comms, monitoring), each with its questions, answers, decisions, action items and risks">
+          </picture>
+        </div>
+        <figcaption>With a local model the map follows the meeting by itself; with Claude it updates when you ask.</figcaption>
+      </figure>
     </div>
   </section>
 

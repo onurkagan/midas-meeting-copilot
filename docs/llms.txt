@@ -8,8 +8,9 @@ Key facts:
 - Install: `curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/main/install.sh | bash` sets up Xcode tools, Python and Claude Code if missing, builds Midas and installs Midas.app. Running it again updates Midas.
 - Audio capture: Core Audio process tap; no meeting bot, no virtual audio driver. Only system audio, not the microphone.
 - Transcription: local Whisper large-v3-turbo via mlx-whisper; Turkish and English by default, configurable.
-- AI: Claude through Claude Code, connected with an MCP server (tools: wait_for_conversation, show_answer, get_transcript, midas_status). Model (Opus, Sonnet, Haiku) and effort are chosen in the panel.
+- AI: Claude through Claude Code, connected with an MCP server (tools: wait_for_conversation, show_answer, get_transcript, midas_status, list_meetings, search_meetings, get_meeting). Model (Opus, Sonnet, Haiku) and effort are chosen in the panel.
 - Local AI: alternatively any model pulled into Ollama, chosen in the panel; the daemon streams its answer into the panel and nothing leaves the Mac (no Claude account needed).
+- Meeting map: a Map tab with the meeting's topics, the questions put to the user, their answers, decisions, action items and open questions, each linked to its source line; saved as Markdown (Mermaid mind map), JSON Canvas and PNG. Open items carry over to the next meeting.
 - Privacy: audio is processed in memory and not saved; text goes to Claude only when the user presses Answer or Summary. Transcripts are saved locally as Markdown.
 - Panel: NSWindow.sharingType = .none, no Dock icon, never takes focus; hotkeys ⌃⌥A (Answer), ⌃⌥M (show/hide), ⌃⌥P (pause).
 - Usage: about 4k tokens of context per answer; a 30-minute meeting on Opus uses roughly 0.1% of a Claude Max plan's 5-hour limit (author's measurement).
