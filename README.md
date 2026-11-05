@@ -44,11 +44,12 @@
 - **Clear about where text goes.** A line under **Answer** shows whether answers stay on your Mac (Ollama) or go to Claude. `local_only` locks Midas to local models, ⌃⌥P takes the meeting off the record, and `keep_sessions_days` deletes old transcripts.
 - **Answers on demand.** One press (or ⌃⌥A) and Claude replies to the latest question within seconds. **Summary** lists decisions and action items so far.
 - **One timeline.** What was said, where you asked, and Claude's reply, in one scroll, with the sentence being spoken shown live.
+- **A map of the meeting.** The **Map** tab gathers the topics, the questions put to you, your answers, decisions, action items and open questions, each tied to the line it came from. **Save map** writes it next to the log as Markdown (with a Mermaid mind map), a JSON Canvas for Obsidian and a picture. What's left open comes over to your next meeting's map.
 - **Light on your Claude plan.** About 4k tokens of context per call and no calls until you press. A 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
 - **Your choice of model.** Claude Opus, Sonnet or Haiku at low to max effort, or any local Ollama model, from the panel.
 - **Multilingual.** Turkish and English by default; any of Whisper's languages through `config.toml`.
 - **Meeting notes in Markdown.** Each transcript and Claude's replies are saved to `sessions/YYYY-MM-DD_HH-MM.md`.
-- **Answers from your codebase.** The MCP server also works inside your own repository, so Claude can answer technical questions from your code.
+- **Answers from your codebase and past meetings.** The MCP server also works inside your own repository, so Claude can answer technical questions from your code, and look up what earlier meetings decided.
 
 ## How it works
 
@@ -121,12 +122,23 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 | ⌃⌥A | **Answer**: have Claude reply to what has been said so far |
 | ⌃⌥P | Go off the record (stop transcribing) and back; the timeline marks where |
 
+#### The meeting map
+
+The **Map** tab, next to the timeline, keeps a map of the meeting: its topics and, under each one, the questions put to you, your answers, decisions, action items (with the owner and due date as said), risks and open questions. Click an item to see the lines it came from; nothing is put on the map without one. **Full map** opens it as a graph in its own window, also hidden from screen sharing.
+
+- **When it updates.** With a local model the map follows the meeting by itself, at most once a minute (`map_live`, `map_interval_s`). With Claude it updates only when you ask for something: after each **Answer** or **Summary**, and when you press **Update**. Then the lines since the last update go to Claude (`map_model`, Sonnet by default) in one call with no tools.
+- **Your answers.** Midas doesn't hear your own voice, so it knows what it suggested but not what you said. Answers stay drafts (dashed) until you mark them **I said this**.
+- **Saving.** The map is kept next to the log as `sessions/YYYY-MM-DD_HH-MM.map.json` and `.map.md` while the meeting goes. **Save map** adds a JSON Canvas (`.canvas`, which Obsidian opens) and a picture (`.png`). When the meeting winds down (after **Summary**, or a few quiet minutes) the timeline offers the map too.
+- **Next meeting.** Action items not marked done and questions left open come over to your next meeting's map, if it's within `carry_over_days` (14 by default).
+
+#### The timeline
+
 The whole meeting flows in one timeline: what was said, where you asked for an answer, and Claude's reply right below your request. The sentence being spoken appears live at the bottom. When someone asks a question, press **Answer** (or ⌃⌥A); the reply appears within a few seconds. The timeline follows along while you're at the bottom; if you scroll up to reread something, a **New** button takes you back. You can also type a specific request to Claude in the text field, and **Summary** lists the decisions and action items so far. The icon on each reply copies its text. The status pill at the top shows whether Midas is listening and Claude is ready, and the line under **Answer** says where answers are worked out. When a meeting starts, a card reminds you to tell the others and copies a ready-made message (English, plus Turkish if you transcribe Turkish). The settings drawer holds the theme (**Auto** follows your Mac, or always **Light** or **Dark**), the copilot, model and effort choice, the hotkeys, **Open folder** and **Quit Midas**.
 
 ### Personalizing
 
 - `context.md`: who you are, your role, your projects, the meeting agenda. Claude reads it at the start of every session.
-- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`), and privacy: the start-of-meeting reminder and its message (`consent_reminder`, `notice_message`), local models only (`local_only`) and how long to keep transcripts (`keep_sessions_days`).
+- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`), and privacy: the start-of-meeting reminder and its message (`consent_reminder`, `notice_message`), local models only (`local_only`) and how long to keep transcripts (`keep_sessions_days`), and the meeting map (`map_live`, `map_interval_s`, `map_model`, `carry_over_days`).
 - `.claude/commands/midas.md`: Claude's behavior and reply style (when to answer, length, tone).
 
 ## Using it from a terminal
