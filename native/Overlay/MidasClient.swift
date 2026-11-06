@@ -87,6 +87,9 @@ struct AudioSource: Decodable, Equatable {
     let name: String
     let state: String  // listening, waiting (for the app's call), all
     let browser: Bool
+    var tab: Bool? = nil  // a Chrome tab sent by Midas for Chrome, standing in for the app
+
+    var isTab: Bool { tab == true }
 }
 
 /// An app that uses audio, for the panel's Listen to list.

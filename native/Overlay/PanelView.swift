@@ -464,6 +464,12 @@ private struct ListenTo: View {
                 }
                 .frame(height: min(CGFloat(apps(selected).count + 2) * 29 - 3, 124))
             }
+            if let source, source.isTab {
+                Text("Now hearing the tab “\(source.name)”, sent by Midas for Chrome. Only that tab is heard.")
+                    .font(Tide.font(10.5, .semibold))
+                    .foregroundStyle(tide.foamText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(source?.listen_to == "file"
                 ? "A test file is playing."
                 : selected == "all"
