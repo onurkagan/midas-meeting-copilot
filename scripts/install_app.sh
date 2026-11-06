@@ -37,6 +37,23 @@ cat >"$RUNTIME/.mcp.json" <<EOF
   }
 }
 EOF
+# Midas for Chrome: the extension to load (Developer mode › Load unpacked), and the native
+# messaging host it reaches Midas through. Chrome lets only that extension start the host.
+rsync -a --delete "$ROOT/extension/" "$RUNTIME/extension/"
+CHROME="$HOME/Library/Application Support/Google/Chrome"
+if [[ -d "$CHROME" ]]; then
+  EXTENSION_ID="$("$ROOT/.venv/bin/python" "$ROOT/scripts/extension_id.py" "$ROOT/extension/manifest.json")"
+  mkdir -p "$CHROME/NativeMessagingHosts"
+  cat >"$CHROME/NativeMessagingHosts/dev.midas.tab.json" <<EOF
+{
+  "name": "dev.midas.tab",
+  "description": "Midas: a call tab's audio from Midas for Chrome",
+  "path": "$RUNTIME/midas",
+  "type": "stdio",
+  "allowed_origins": ["chrome-extension://$EXTENSION_ID/"]
+}
+EOF
+fi
 # Files written by another app carry its access markers (com.apple.macl); drop them.
 xattr -rc "$RUNTIME" 2>/dev/null || true
 
