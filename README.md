@@ -118,6 +118,8 @@ A call in Chrome (Google Meet, or Zoom or Teams on the web) shares Chrome's audi
 - The tab keeps playing for you; Midas gets a copy. It goes to Midas through a native messaging host that only this extension may start, and nothing leaves your Mac.
 - On Google Meet, muting yourself in Meet mutes Midas's microphone too, and unmuting unmutes it. The extension reads only the microphone button's state on the page.
 - While a tab is sent, Midas sets its own capture of the app aside, so nothing is heard twice; afterwards it goes back to **Listen to**.
+- The first click opens a page that says what the extension sends and where, and asks you to allow it; its options page shows it again and lets you withdraw your consent.
+- `scripts/pack_extension.sh` packs the extension for the Chrome Web Store; [extension/STORE.md](extension/STORE.md) has the listing, the permission justifications and the privacy answers.
 
 ### Local models with Ollama
 
