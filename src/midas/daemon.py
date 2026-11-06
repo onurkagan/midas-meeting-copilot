@@ -38,7 +38,7 @@ class Daemon:
         self.stop = threading.Event()
         prune_sessions(SESSIONS_DIR, config.keep_sessions_days)
         session = SESSIONS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M}.md"
-        self.store = Store(session)
+        self.store = Store(session, window_s=config.recent_minutes * 60)
         self.store.privacy = panel_privacy(config)
         self.source = FileAudio(input_file) if input_file else SystemAudio(on_status=self._audio_status)
         self.transcriber = Transcriber(config.model, config.languages, config.vocabulary)

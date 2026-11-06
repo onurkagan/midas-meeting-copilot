@@ -66,6 +66,9 @@ class Config:
     local_only: bool = False
     # Delete meeting logs in sessions/ older than this many days when Midas starts; 0 keeps them.
     keep_sessions_days: int = 0
+    # A copilot reads only what was said in the last this-many minutes (your requests always
+    # go), so sound from before the meeting can't reach it; 0 lets it read the whole meeting.
+    recent_minutes: int = 10
     # The meeting map: topics, questions put to you, your answers, decisions and action items.
     # With a local model it follows the meeting by itself, at most every map_interval_s.
     # Claude updates it only when you ask (Answer, Summary, Update map), unless auto_answer.

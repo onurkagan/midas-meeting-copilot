@@ -22,10 +22,13 @@ log = logging.getLogger("midas")
 
 
 class Store:
-    def __init__(self, session_file: Path):
+    def __init__(self, session_file: Path, window_s: float = 0):
         self.session_file = session_file
         # Identifies this run, so the panel notices a restarted daemon (ids start at 1 again).
         self.started = time.time()
+        # How far back a copilot may read, in seconds (0: the whole meeting). The user's own
+        # requests always go.
+        self.window_s = window_s
         self._cond = threading.Condition()
         self._events: list[dict] = []
         self.partial = ""
@@ -51,6 +54,13 @@ class Store:
         session_file.parent.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%d.%m.%Y %H:%M")
         session_file.write_text(f"# Midas meeting log — {stamp}\n\n", encoding="utf-8")
+
+    def _recent(self, events: list[dict]) -> list[dict]:
+        """Drops what was said longer ago than the window; requests always stay."""
+        if not self.window_s:
+            return events
+        since = time.time() - self.window_s
+        return [e for e in events if e["kind"] in (REQUEST, ANSWER) or e["ts"] >= since]
 
     def add(self, kind: str, text: str, title: str = "") -> dict:
         now = time.time()
@@ -118,8 +128,9 @@ class Store:
             return list(self._events), self.partial
 
     def recent(self, kinds: tuple[str, ...], limit: int) -> tuple[int, list[dict]]:
+        """The last `limit` events of these kinds, within the window."""
         with self._cond:
-            matching = [e for e in self._events if e["kind"] in kinds]
+            matching = [e for e in self._recent(self._events) if e["kind"] in kinds]
             return len(self._events), matching[-limit:] if limit > 0 else []
 
     def pending_requests(self) -> list[dict]:
@@ -156,7 +167,7 @@ class Store:
             finally:
                 self.claude_waiting -= 1
                 self.claude_seen_at = time.time()
-            return len(self._events), fresh, self.partial
+            return len(self._events), self._recent(fresh), self.partial
 
     def snapshot(self, since: int = 0) -> dict:
         """Panel state plus every event after id `since`, so the panel can keep the full
