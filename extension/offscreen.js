@@ -5,8 +5,8 @@ let stream = null;
 let playback = null; // the tab at full quality, for the user's ears
 let capture = null; // the same audio at 16 kHz, for Midas
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.target !== "offscreen") return;
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (sender.id !== chrome.runtime.id || message.target !== "offscreen") return;
   if (message.type === "start") start(message.streamId).catch((error) => {
     console.error("Midas: couldn't capture the tab", error);
     chrome.runtime.sendMessage({ target: "background", type: "ended" });

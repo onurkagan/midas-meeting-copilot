@@ -40,12 +40,13 @@ function onHostMessage(message) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.target !== "background") return;
+  // Only this extension's own pages and scripts; web pages can't message it at all.
+  if (sender.id !== chrome.runtime.id || message.target !== "background") return;
   if (message.type === "audio" && port) {
     port.postMessage({ type: "audio", pcm: message.pcm });
   } else if (message.type === "ended") {
     stop("the tab stopped playing");
-  } else if (message.type === "meet-mute" && port && sender.tab?.id === capturing?.id) {
+  } else if (message.type === "meet-mute" && port && sender.origin === "https://meet.google.com" && sender.tab?.id === capturing?.id) {
     // Meet's own microphone button: muted in Meet means muted in Midas too.
     port.postMessage({ type: "mute", muted: message.muted });
   }
