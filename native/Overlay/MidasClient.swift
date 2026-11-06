@@ -66,6 +66,31 @@ struct Snapshot: Decodable {
     var draft: String? = nil  // the answer as a streaming copilot (Ollama) writes it
     var privacy: PrivacySettings? = nil
     var map: MapInfo? = nil  // the meeting map's version and counts; nil from older daemons
+    var source: AudioSource? = nil  // what Midas listens to; nil from older daemons
+}
+
+/// What Midas listens to: "auto" (the app in a call), "all" (the whole Mac), an app's
+/// bundle ID, or "file" in a test; and whether it hears it now.
+struct AudioSource: Decodable, Equatable {
+    let listen_to: String
+    let app: String
+    let name: String
+    let state: String  // listening, waiting (for the app's call), all
+    let browser: Bool
+}
+
+/// An app that uses audio, for the panel's Listen to list.
+struct AudioApp: Decodable, Identifiable, Equatable {
+    let bundle: String
+    let name: String
+    let output: Bool
+    let input: Bool  // in a call: its microphone is on
+    let browser: Bool
+    var id: String { bundle }
+}
+
+private struct AudioAppList: Decodable {
+    let apps: [AudioApp]
 }
 
 final class MidasClient: ObservableObject {
@@ -76,6 +101,8 @@ final class MidasClient: ObservableObject {
     /// Local models to choose from, fetched when the Ollama settings are shown.
     @Published var ollama: OllamaCatalog?
     @Published private(set) var refreshingOllama = false
+    /// The apps using audio, fetched when the settings are shown.
+    @Published private(set) var audioApps: [AudioApp]?
     /// Time to remind the user to tell the others: when Midas starts, and when speech
     /// returns after a long quiet spell (a new meeting).
     @Published private(set) var noticeDue = false
@@ -282,6 +309,23 @@ final class MidasClient: ObservableObject {
                 }
             }
         }.resume()
+    }
+
+    func refreshApps() {
+        var request = URLRequest(url: base.appendingPathComponent("apps"))
+        request.timeoutInterval = 15
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            let list = data.flatMap { try? JSONDecoder().decode(AudioAppList.self, from: $0) }
+            DispatchQueue.main.async { if let list { self.audioApps = list.apps } }
+        }.resume()
+    }
+
+    /// Shows these apps without asking the daemon (previews).
+    func show(apps: [AudioApp]) { audioApps = apps }
+
+    /// "auto", "all" or an app's bundle ID.
+    func listen(to target: String) {
+        post("control", ["action": "listen", "app": target])
     }
 
     /// Stops the whole of Midas (daemon, Claude copilot and this panel).

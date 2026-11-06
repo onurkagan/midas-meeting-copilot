@@ -15,6 +15,7 @@ enum Preview {
             draw(empty, settings: false, dark: dark, to: folder + "/empty\(suffix).png")
             draw(sample(pending: true, local: true), settings: true, ollama: models, dark: dark, to: folder + "/ollama-settings\(suffix).png")
             draw(meetingStart, settings: false, dark: dark, to: folder + "/consent\(suffix).png")
+            draw(inBrowser, settings: true, apps: apps, dark: dark, to: folder + "/listen-settings\(suffix).png")
             draw(summarized, settings: false, dark: dark, to: folder + "/map-card\(suffix).png")
             draw(summarized, settings: false, map: sampleMap, dark: dark, to: folder + "/map-tab\(suffix).png")
             drawWindow(dark: dark, to: folder + "/map-window\(suffix).png")
@@ -53,13 +54,15 @@ enum Preview {
     }
 
     private static func draw(
-        _ snapshot: Snapshot, settings: Bool, ollama: OllamaCatalog? = nil, map: MeetingMapData? = nil, dark: Bool, to path: String
+        _ snapshot: Snapshot, settings: Bool, ollama: OllamaCatalog? = nil, map: MeetingMapData? = nil, apps: [AudioApp]? = nil,
+        dark: Bool, to path: String
     ) {
         let size = NSRect(x: 0, y: 0, width: 420, height: 640)
         let client = MidasClient(port: 0)
         client.apply(snapshot, since: 0)
         client.ollama = ollama
         if let map { client.show(map: map) }
+        if let apps { client.show(apps: apps) }
         // The desktop the glass sits on: a calm sea by day, the night sea in dark mode.
         let desk = dark
             ? LinearGradient(colors: [Color(hex: 0x0B2231), Color(hex: 0x0D4A55)], startPoint: .top, endPoint: .bottom)
@@ -82,6 +85,19 @@ enum Preview {
     }
 
     /// `local`: answered by an Ollama model, its reply still streaming in.
+    /// A call in Chrome: Midas follows it and says that every tab is heard.
+    private static var inBrowser: Snapshot {
+        var snapshot = sample(pending: false)
+        snapshot.source = AudioSource(listen_to: "auto", app: "com.google.Chrome", name: "Google Chrome", state: "listening", browser: true)
+        return snapshot
+    }
+
+    private static let apps = [
+        AudioApp(bundle: "com.google.Chrome", name: "Google Chrome", output: true, input: true, browser: true),
+        AudioApp(bundle: "com.spotify.client", name: "Spotify", output: true, input: false, browser: false),
+        AudioApp(bundle: "us.zoom.xos", name: "zoom.us", output: false, input: false, browser: false),
+    ]
+
     private static func sample(pending: Bool, local: Bool = false) -> Snapshot {
         var lines: [(String, String, String, String)] = [
             ("10:02:05", "transcript", "Thanks for joining, everyone. Let's start with the payments project.", ""),

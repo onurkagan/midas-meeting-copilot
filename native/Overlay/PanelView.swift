@@ -261,7 +261,14 @@ private struct StatusPill: View {
         guard client.connected, let snapshot = client.snapshot else { return ("Offline", .warning, false) }
         let copilot = "\(client.copilotName) \(snapshot.claude)"
         if snapshot.paused { return ("Off the record · \(copilot)", .quiet, false) }
-        if snapshot.status == "listening" { return ("Listening · \(copilot)", .listening, snapshot.speaking) }
+        if snapshot.status == "listening" {
+            // Following one app's call: name it, so you know what Midas hears.
+            if let source = snapshot.source, source.state == "listening", !source.name.isEmpty {
+                return ("\(source.name) · \(copilot)", .listening, snapshot.speaking)
+            }
+            return ("Listening · \(copilot)", .listening, snapshot.speaking)
+        }
+        if snapshot.status == "waiting for a call" { return ("Waiting for a call · \(copilot)", .quiet, false) }
         if snapshot.status.hasPrefix("listening") { return ("No sound · \(copilot)", .quiet, false) }
         if snapshot.status.contains("error") || snapshot.status.contains("not found") {
             return (snapshot.status, .warning, false)
@@ -328,6 +335,8 @@ private struct SettingsDrawer: View {
                 }
                 Rectangle().fill(tide.divider).frame(height: 1)
             }
+            ListenTo(client: client)
+            Rectangle().fill(tide.divider).frame(height: 1)
             HStack(spacing: 14) {
                 shortcut("⌃⌥A", "Answer")
                 shortcut("⌃⌥M", "Show / hide")
@@ -358,6 +367,7 @@ private struct SettingsDrawer: View {
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(tide.cardStroke))
         .onAppear {
             if client.snapshot?.copilot?.isOllama == true { client.refreshOllama() }
+            client.refreshApps()
         }
     }
 
@@ -380,6 +390,119 @@ private struct SettingsDrawer: View {
             .font(Tide.font(10.5))
             .foregroundStyle(tide.muted)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// What Midas listens to: the app in a call, one app, or the whole Mac. An inline list, like
+/// the models below (a pop-up menu would show in screen shares).
+private struct ListenTo: View {
+    @ObservedObject var client: MidasClient
+    @Environment(\.tide) private var tide
+    /// The list opens on demand, so the drawer stays short.
+    @State private var choosing = false
+
+    var body: some View {
+        let source = client.snapshot?.source
+        let selected = source?.listen_to ?? "auto"
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text("Listen to").frame(width: 62, alignment: .leading)
+                if !choosing {
+                    Text(title(selected)).font(Tide.font(11.5, .bold)).lineLimit(1)
+                    if selected == "auto", let source {
+                        Text(autoDetail(source)).foregroundStyle(tide.muted).lineLimit(1)
+                    }
+                }
+                Spacer()
+                if source?.listen_to != "file" {
+                    if choosing {
+                        Button(action: client.refreshApps) { Icon(.refresh, size: 14) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(tide.muted)
+                            .help("Refresh the list of apps")
+                            .accessibilityLabel("Refresh the list of apps")
+                    }
+                    Button(choosing ? "Done" : "Change") {
+                        withAnimation(.easeOut(duration: 0.15)) { choosing.toggle() }
+                        if choosing { client.refreshApps() }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(tide.accentText)
+                    .font(Tide.font(11.5, .semibold))
+                }
+            }
+            if choosing {
+                ScrollView {
+                    VStack(spacing: 3) {
+                        choice("auto", title("auto"), detail: source.map(autoDetail) ?? "", selected: selected)
+                        ForEach(apps(selected)) { app in
+                            choice(app.bundle, app.name, detail: app.input ? "In a call" : app.output ? "Playing" : "", selected: selected,
+                                   recommended: app.input)
+                        }
+                        choice("all", title("all"), detail: "", selected: selected)
+                    }
+                }
+                .frame(height: min(CGFloat(apps(selected).count + 2) * 29 - 3, 124))
+            }
+            Text(source?.listen_to == "file"
+                ? "A test file is playing."
+                : selected == "all"
+                ? "Every app is heard: other calls, videos and notification sounds too."
+                : "Only this app is heard, and only while it's in a call (its microphone is on).")
+                .font(Tide.font(10.5))
+                .foregroundStyle(tide.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func title(_ value: String) -> String {
+        switch value {
+        case "auto": "The app in a call"
+        case "all": "Everything the Mac plays"
+        case "file": "A test file"
+        default: apps(value).first { $0.bundle == value }?.name ?? value
+        }
+    }
+
+    /// The apps using audio, plus the chosen one if it isn't running now.
+    private func apps(_ selected: String) -> [AudioApp] {
+        var apps = client.audioApps ?? []
+        if !["auto", "all"].contains(selected), !apps.contains(where: { $0.bundle == selected }) {
+            let name = client.snapshot?.source?.name ?? ""
+            apps.insert(AudioApp(bundle: selected, name: name.isEmpty ? selected : name, output: false, input: false, browser: false), at: 0)
+        }
+        return apps
+    }
+
+    private func autoDetail(_ source: AudioSource) -> String {
+        guard source.listen_to == "auto" else { return "" }
+        return source.state == "listening" ? source.name : "none yet"
+    }
+
+    private func choice(_ value: String, _ title: String, detail: String, selected: String, recommended: Bool = false) -> some View {
+        let isSelected = value == selected
+        return Button {
+            client.listen(to: value)
+        } label: {
+            HStack(spacing: 7) {
+                Icon(.radio, size: 15, filled: isSelected)
+                    .foregroundStyle(isSelected ? tide.accent : tide.muted)
+                Text(title)
+                    .font(Tide.font(11.5, isSelected ? .bold : .regular))
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(detail)
+                    .font(Tide.font(10.5, recommended ? .semibold : .regular))
+                    .foregroundStyle(recommended ? tide.foamText : tide.muted)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 9).fill(isSelected ? tide.accent.opacity(0.14) : tide.field))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
