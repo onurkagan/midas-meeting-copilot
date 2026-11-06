@@ -53,6 +53,8 @@ class Store:
         self.privacy: dict = {}
         # The meeting map's version, state and counts (map_builder.py), for the panel.
         self.map_info: dict = {}
+        # What Midas listens to and whether it is hearing it now (audio.SystemAudio).
+        self.source: dict = {}
         # Seconds from a request to its answer, per copilot, for /api/health.
         self._latencies: deque[tuple[str, float]] = deque(maxlen=500)
         # The log is written once the meeting has something in it, so a Midas that ran
@@ -231,6 +233,7 @@ class Store:
                 "copilot": self.copilot,
                 "privacy": self.privacy,
                 "map": self.map_info or None,
+                "source": self.source or None,
                 "session": self.started,
                 "count": len(self._events),
                 "events": self._events[max(since, self.meeting_start) :],

@@ -69,6 +69,10 @@ class Config:
     # A copilot reads only what was said in the last this-many minutes (your requests always
     # go), so sound from before the meeting can't reach it; 0 lets it read the whole meeting.
     recent_minutes: int = 10
+    # What Midas listens to: "auto" (whichever app is in a call: its microphone is on),
+    # "all" (everything the Mac plays) or one app's bundle ID such as "us.zoom.xos". With an
+    # app, only that app is heard, and only during its calls. The panel's choice wins.
+    listen_to: str = "auto"
     # Speech after this many quiet minutes starts a new meeting: its own log and map, and the
     # copilot starts over without the last one; 0 keeps one meeting per run.
     meeting_gap_minutes: int = 15

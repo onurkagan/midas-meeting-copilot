@@ -36,7 +36,8 @@ def refusal(method: str, headers, allowed_hosts: set[str]) -> tuple[int, str] | 
 
 
 def serve(
-    store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool, map_builder=None
+    store: Store, host: str, port: int, on_quit, on_copilot, on_ollama, auto_answer: bool, map_builder=None,
+    on_listen=None, on_apps=None,
 ) -> ThreadingHTTPServer:
     allowed_hosts = LOOPBACK | {host}
     reported: set[str] = set()
@@ -94,6 +95,8 @@ def serve(
                 self._send({"cursor": cursor, "events": events, "partial": partial, "auto": auto_answer})
             elif url.path == "/api/ollama":
                 self._send(on_ollama())
+            elif url.path == "/api/apps" and on_apps:
+                self._send(on_apps())
             elif url.path == "/api/map" and map_builder:
                 self._send(map_builder.map.to_dict())
             elif url.path == "/api/recent":
@@ -130,8 +133,13 @@ def serve(
                         return self._send(on_copilot(**{key: body.get(key) for key in fields}))
                     except ValueError as error:
                         return self._send({"error": str(error)}, 400)
+                if action == "listen" and on_listen:
+                    try:
+                        return self._send(on_listen(body.get("app")))
+                    except ValueError as error:
+                        return self._send({"error": str(error)}, 400)
                 if action not in ("pause", "resume"):
-                    return self._send({"error": "action must be pause, resume, copilot or quit"}, 400)
+                    return self._send({"error": "action must be pause, resume, listen, copilot or quit"}, 400)
                 store.set_paused(action == "pause")
                 self._send({"paused": store.paused})
             else:

@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -12,7 +13,7 @@ from collections import deque
 from datetime import datetime
 
 from . import api
-from .audio import LISTENING, SILENT_STATUS, FileAudio, SystemAudio
+from .audio import ALL, AUTO, LISTENING, SILENT_STATUS, WAITING, FileAudio, SystemAudio, list_apps
 from .config import (
     BIN_DIR, CLAUDE_EFFORTS, CLAUDE_MODELS, COPILOT_FILE, COPILOT_PROVIDERS, LOGS_DIR, PID_FILE, ROOT,
     SESSIONS_DIR, Config,
@@ -40,7 +41,15 @@ class Daemon:
         session = SESSIONS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M}.md"
         self.store = Store(session, window_s=config.recent_minutes * 60)
         self.store.privacy = panel_privacy(config)
-        self.source = FileAudio(input_file) if input_file else SystemAudio(on_status=self._audio_status)
+        saved = self._saved_settings()
+        if input_file:
+            self.source = FileAudio(input_file)
+            self.store.source = {"listen_to": "file", "app": "", "name": "", "state": "listening", "browser": False}
+        else:
+            listen_to = saved.get("listen_to") or config.listen_to
+            self.source = SystemAudio(
+                listen_to, on_status=self._audio_status, on_source=lambda source: self.store.update(source=source)
+            )
         self.transcriber = Transcriber(config.model, config.languages, config.vocabulary)
         self.segmenter = Segmenter(
             silence_ms=config.silence_ms,
@@ -63,8 +72,7 @@ class Daemon:
                 "effort": config.claude_effort,
                 "ollama_model": config.ollama_model,
             }
-            if COPILOT_FILE.exists():
-                settings.update(json.loads(COPILOT_FILE.read_text()))
+            settings.update({k: v for k, v in saved.items() if k in settings})
             if config.local_only:
                 settings["provider"] = "ollama"
             self.store.copilot = settings
@@ -98,6 +106,7 @@ class Daemon:
             server = api.serve(
                 self.store, self.config.host, self.config.port,
                 on_quit=self.stop.set, on_copilot=self.set_copilot, on_ollama=self.ollama_models,
+                on_listen=self.listen, on_apps=self.audio_apps,
                 auto_answer=self.config.auto_answer, map_builder=self.map_builder,
             )  # fmt: skip
         except OSError:
@@ -238,7 +247,7 @@ class Daemon:
                 settings["ollama_model"] = str(ollama_model).strip()
             if settings == previous:
                 return settings
-            COPILOT_FILE.write_text(json.dumps(settings))
+            self._save_settings(**settings)
             self.store.update(copilot=settings)
             log.info("copilot: %s", settings)
             claude_changed = any(previous.get(key) != settings.get(key) for key in ("provider", "model", "effort"))
@@ -247,6 +256,34 @@ class Daemon:
                     self._restart_claude.set()
                 self._claude.terminate()
             return settings
+
+    @staticmethod
+    def _saved_settings() -> dict:
+        """The panel's choices (copilot.json)."""
+        try:
+            return json.loads(COPILOT_FILE.read_text()) if COPILOT_FILE.exists() else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _save_settings(self, **changes):
+        COPILOT_FILE.write_text(json.dumps({**self._saved_settings(), **changes}))
+
+    def listen(self, listen_to: str) -> dict:
+        """The panel's choice of what to listen to: AUTO, ALL or an app's bundle ID."""
+        listen_to = str(listen_to or "").strip()
+        if listen_to not in (AUTO, ALL) and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{1,200}", listen_to):
+            raise ValueError("listen_to must be auto, all or an app's bundle ID")
+        if not isinstance(self.source, SystemAudio):
+            raise ValueError("Midas is playing a file, not listening to the Mac")
+        self._save_settings(listen_to=listen_to)
+        self.source.listen(listen_to)
+        log.info("listening to: %s", listen_to)
+        return self.source.source
+
+    @staticmethod
+    def audio_apps() -> dict:
+        """The panel's list of apps to listen to."""
+        return {"apps": list_apps()}
 
     def ollama_models(self) -> dict:
         """The panel's list of local models to pick from."""
@@ -302,7 +339,9 @@ class Daemon:
             self.store.update(status=f"model error: {error}")
             return
         self._ready.set()
-        self.store.update(status=LISTENING)
+        # midas-audio may already be waiting for the chosen app's call.
+        waiting = (self.store.source or {}).get("state") == "waiting"
+        self.store.update(status=WAITING if waiting else LISTENING)
         context = ""
         last_final_id = 0
         while not self.stop.is_set():
