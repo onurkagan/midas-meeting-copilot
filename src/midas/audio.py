@@ -51,14 +51,16 @@ class SystemAudio:
     listen_to: AUTO, ALL or a bundle ID. With an app (or AUTO), midas-audio taps only that
     app, and only while it is in a call."""
 
-    def __init__(self, listen_to: str = AUTO, on_status=None, on_source=None):
+    def __init__(self, listen_to: str = AUTO, on_status=None, on_source=None, microphone: bool = False):
         self.binary = BIN_DIR / "midas-audio"
         self.listen_to = listen_to
+        # The user's microphone instead of the app's audio, during the same calls.
+        self.microphone = microphone
         self.on_status = on_status or (lambda text: None)
         self.on_source = on_source or (lambda source: None)
         self._proc: subprocess.Popen | None = None
         self._switching = False
-        self._report(app="", name="", state=ALL if listen_to == ALL else "waiting")
+        self._report(app="", name="", state=ALL if listen_to == ALL and not microphone else "waiting")
 
     def listen(self, listen_to: str):
         """Switches to another app (or AUTO, or ALL) at once."""
@@ -66,7 +68,7 @@ class SystemAudio:
             return
         self.listen_to = listen_to
         self._switching = True
-        self._report(app="", name="", state=ALL if listen_to == ALL else "waiting")
+        self._report(app="", name="", state=ALL if listen_to == ALL and not self.microphone else "waiting")
         self.close()
 
     def _report(self, **source):
@@ -79,8 +81,11 @@ class SystemAudio:
         backoff = 1.0
         while not stop.is_set():
             command = [str(self.binary), "--rate", str(SAMPLE_RATE)]
-            if self.listen_to != ALL:
-                command += ["--app", self.listen_to]
+            if self.listen_to != ALL or self.microphone:
+                # The microphone runs during calls only: with "all" it follows any app's call.
+                command += ["--app", AUTO if self.listen_to == ALL else self.listen_to]
+            if self.microphone:
+                command.append("--mic")
             self._proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             threading.Thread(target=self._pump_stderr, args=(self._proc,), daemon=True).start()
             started = time.monotonic()

@@ -18,6 +18,13 @@ REQUEST = "request"
 MARKER = "marker"
 OFF_THE_RECORD = "Off the record"
 BACK_ON_THE_RECORD = "Back on the record"
+# Who said a transcript line: the call's audio, or the user's microphone.
+OTHERS = "others"
+YOU = "you"
+
+
+def speaker_label(event: dict) -> str:
+    return "You" if event.get("speaker") == YOU else "Others"
 
 log = logging.getLogger("midas")
 
@@ -55,6 +62,8 @@ class Store:
         self.map_info: dict = {}
         # What Midas listens to and whether it is hearing it now (audio.SystemAudio).
         self.source: dict = {}
+        # The user's microphone: whether it is on (during a call).
+        self.mic: dict = {}
         # Seconds from a request to its answer, per copilot, for /api/health.
         self._latencies: deque[tuple[str, float]] = deque(maxlen=500)
         # The log is written once the meeting has something in it, so a Midas that ran
@@ -83,7 +92,7 @@ class Store:
         since = time.time() - self.window_s
         return [e for e in events if e["kind"] in (REQUEST, ANSWER) or e["ts"] >= since]
 
-    def add(self, kind: str, text: str, title: str = "") -> dict:
+    def add(self, kind: str, text: str, title: str = "", speaker: str = "") -> dict:
         now = time.time()
         with self._cond:
             if kind == ANSWER:
@@ -96,8 +105,10 @@ class Store:
                 "text": text,
                 "title": title,
             }
-            self._events.append(event)
             if kind == TRANSCRIPT:
+                event["speaker"] = speaker or OTHERS
+            self._events.append(event)
+            if kind == TRANSCRIPT and event["speaker"] == OTHERS:
                 self.last_final_at = now
                 self.partial = ""
             elif kind == ANSWER:
@@ -234,6 +245,7 @@ class Store:
                 "privacy": self.privacy,
                 "map": self.map_info or None,
                 "source": self.source or None,
+                "mic": self.mic or None,
                 "session": self.started,
                 "count": len(self._events),
                 "events": self._events[max(since, self.meeting_start) :],
@@ -250,7 +262,7 @@ class Store:
 
     def _write(self, event: dict):
         if event["kind"] == TRANSCRIPT:
-            line = f"**[{event['time']}]** {event['text']}\n\n"
+            line = f"**[{event['time']}] {speaker_label(event)}:** {event['text']}\n\n"
         elif event["kind"] == ANSWER:
             body = event["text"].replace("\n", "\n> ")
             line = f"> **Midas · {event['title'] or 'suggestion'}** ({event['time']})\n> {body}\n\n"

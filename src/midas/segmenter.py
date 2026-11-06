@@ -1,7 +1,8 @@
 """Energy-based voice activity detection that cuts the stream into utterances."""
 
+import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -16,6 +17,8 @@ class Segment:
     id: int
     kind: str  # "partial" while someone is still talking, "final" once they pause
     audio: np.ndarray
+    speaker: str = "others"  # "others" (the call's audio) or "you" (the microphone)
+    at: float = field(default_factory=time.time)  # when it was cut
 
 
 class Segmenter:
@@ -27,7 +30,9 @@ class Segmenter:
         min_speech_ms: int = 250,
         preroll_ms: int = 300,
         on_speaking=None,
+        speaker: str = "others",
     ):
+        self.speaker = speaker
         self.silence_frames = max(1, int(silence_ms / 1000 / FRAME_S))
         # Whisper sees at most 30 s per pass, so utterances are cut before that.
         self.max_frames = int(min(max_segment_s, 28.0) / FRAME_S)
@@ -104,7 +109,7 @@ class Segmenter:
             return segments
         if self.partial_frames and self._since_partial >= self.partial_frames and len(self._frames) > 33:
             self._since_partial = 0
-            return [Segment(self._next_id, "partial", np.concatenate(self._frames))]
+            return [Segment(self._next_id, "partial", np.concatenate(self._frames), self.speaker)]
         return []
 
     def _finish(self, frames: list[np.ndarray], keep_active: bool = False) -> list[Segment]:
@@ -119,4 +124,4 @@ class Segmenter:
             self._onset = 0
         if voiced < self.min_voiced or not frames:
             return []
-        return [Segment(segment_id, "final", np.concatenate(frames))]
+        return [Segment(segment_id, "final", np.concatenate(frames), self.speaker)]

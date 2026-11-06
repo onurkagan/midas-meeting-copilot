@@ -25,7 +25,7 @@ from .ollama import Ollama, OllamaError
 from .privacy import panel_privacy, prune_sessions
 from .prompt import SYSTEM_PROMPT, copilot_prompt
 from .segmenter import Segment, Segmenter
-from .store import TRANSCRIPT, Store
+from .store import OTHERS, TRANSCRIPT, YOU, Store
 from .transcriber import Transcriber
 
 log = logging.getLogger("midas")
@@ -50,6 +50,13 @@ class Daemon:
             self.source = SystemAudio(
                 listen_to, on_status=self._audio_status, on_source=lambda source: self.store.update(source=source)
             )
+        # The user's own voice, during the same calls (not with a test file).
+        self.mic = None
+        if config.microphone and not input_file:
+            self.mic = SystemAudio(listen_to, microphone=True, on_source=lambda mic: self.store.update(mic=mic))
+        self.mic_segmenter = Segmenter(
+            silence_ms=config.silence_ms, max_segment_s=config.max_segment_s, partial_every_s=0, speaker=YOU
+        )
         self.transcriber = Transcriber(config.model, config.languages, config.vocabulary)
         self.segmenter = Segmenter(
             silence_ms=config.silence_ms,
@@ -120,6 +127,8 @@ class Daemon:
         self._start_overlay()
         threading.Thread(target=self._transcribe_loop, name="whisper", daemon=True).start()
         threading.Thread(target=self._audio_loop, name="audio", daemon=True).start()
+        if self.mic:
+            threading.Thread(target=self._mic_loop, name="microphone", daemon=True).start()
         if self.copilot:
             threading.Thread(target=self._copilot_loop, name="copilot", daemon=True).start()
         threading.Thread(target=self.map_builder.run, args=(self.stop,), name="map", daemon=True).start()
@@ -132,6 +141,8 @@ class Daemon:
 
         log.info("shutting down")
         self.source.close()
+        if self.mic:
+            self.mic.close()
         server.shutdown()
         for child in (self._overlay, self._claude):
             if child and child.poll() is None:
@@ -277,6 +288,8 @@ class Daemon:
             raise ValueError("Midas is playing a file, not listening to the Mac")
         self._save_settings(listen_to=listen_to)
         self.source.listen(listen_to)
+        if self.mic:
+            self.mic.listen(listen_to)
         log.info("listening to: %s", listen_to)
         return self.source.source
 
@@ -320,11 +333,25 @@ class Daemon:
             log.exception("audio loop stopped")
             self.store.update(status=f"audio error: {error}")
 
+    def _mic_loop(self):
+        """The user's microphone: nothing of it is transcribed while off the record."""
+        try:
+            for chunk in self.mic.chunks(self.stop):
+                if self.store.paused:
+                    if self.mic_segmenter._active:
+                        self.mic_segmenter.reset()
+                    continue
+                for segment in self.mic_segmenter.feed(chunk):
+                    if segment.kind == "final":
+                        self._enqueue(segment)
+        except Exception:
+            log.exception("microphone loop stopped")
+
     def _enqueue(self, segment: Segment):
         with self._jobs:
             if segment.kind == "final":
                 self._finals.append(segment)
-                if self._partial and self._partial.id <= segment.id:
+                if self._partial and segment.speaker == OTHERS and self._partial.id <= segment.id:
                     self._partial = None
             else:
                 self._partial = segment
@@ -342,7 +369,8 @@ class Daemon:
         # midas-audio may already be waiting for the chosen app's call.
         waiting = (self.store.source or {}).get("state") == "waiting"
         self.store.update(status=WAITING if waiting else LISTENING)
-        context = ""
+        # The last line of each side, so Whisper keeps names and terms consistent.
+        context = {OTHERS: "", YOU: ""}
         last_final_id = 0
         while not self.stop.is_set():
             with self._jobs:
@@ -355,16 +383,23 @@ class Daemon:
             if segment is None or (segment.kind == "partial" and segment.id <= last_final_id):
                 continue
             try:
-                text = self.transcriber.transcribe(segment.audio, final=segment.kind == "final", context=context)
+                text = self.transcriber.transcribe(segment.audio, final=segment.kind == "final", context=context[segment.speaker])
             except Exception:
                 log.exception("transcription error")
+                continue
+            if segment.speaker == YOU:
+                if text and not self.store.paused:
+                    self._new_meeting_if_due()
+                    self.store.add(TRANSCRIPT, text, speaker=YOU)
+                    context[YOU] = text
+                    log.debug("you » %s", text)
                 continue
             if segment.kind == "final":
                 last_final_id = segment.id
                 if text:
                     self._new_meeting_if_due()
-                    self.store.add(TRANSCRIPT, text)
-                    context = text
+                    self.store.add(TRANSCRIPT, text, speaker=OTHERS)
+                    context[OTHERS] = text
                     # What was said stays out of the log unless you debug (MIDAS_DEBUG=1).
                     log.debug("» %s", text)
                 else:
