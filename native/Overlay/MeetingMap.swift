@@ -66,10 +66,14 @@ struct MapNode: Decodable, Equatable, Identifiable {
     /// "4 Nov, 10:00" for an item carried over from an earlier meeting.
     var carriedFrom: String? {
         guard let carried, carried.count == 16 else { return nil }
+        // English month names, like the rest of the panel, whatever the Mac's language.
+        let english = Locale(identifier: "en_US_POSIX")
         let input = DateFormatter()
+        input.locale = english
         input.dateFormat = "yyyy-MM-dd_HH-mm"
         guard let date = input.date(from: carried) else { return nil }
         let output = DateFormatter()
+        output.locale = english
         output.dateFormat = "d MMM, HH:mm"
         return output.string(from: date)
     }
