@@ -10,6 +10,9 @@
     "default_title": "Send this tab's audio to Midas",
     "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
   },
+  "content_scripts": [
+    { "matches": ["https://meet.google.com/*"], "js": ["meet.js"], "run_at": "document_idle" }
+  ],
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4vHwcXHRP/WUWA8eqM0GtEh71yAJyvcSEeZnPATIrppv8mmOt3Htn+gybHOJZ3m5DYP4BhHx4ngeC/I1ahKsAl/PUlk3vmfJ4xh4IrK8/zNULpGNkxscVReJalc/3/cVjYZcLaFSUUGz1dVz5SwW5mPrrsSrnzbTARY+NgM4TW/wM+osn3VJ9lfSp7LwsT9qgMHI7vW+Jr7eY6yoRj3I6Vr0aaDhK3xUAHkXbwS7IeO0y7RrLG+TAwWtHA2SxijCfkUgXKD6SJm33wih29KN/bHyHKwuSPbJyImwpponFCP2OEfJA4rOPF6M2SoJrrcoEE7HOlc9+1pcF5mXFWQsMwIDAQAB"
 }

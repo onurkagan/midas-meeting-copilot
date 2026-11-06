@@ -43,7 +43,7 @@ class Daemon:
         self.store.privacy = panel_privacy(config)
         saved = self._saved_settings()
         # A tab sent by Midas for Chrome stands in for the app tap while it lasts.
-        self.tab = None if input_file else TabAudio(TAB_SOCKET, on_change=self._tab_changed)
+        self.tab = None if input_file else TabAudio(TAB_SOCKET, on_change=self._tab_changed, on_mute=self._tab_muted)
         self._capture_status = LISTENING
         self._feed = threading.Lock()
         if input_file:
@@ -327,6 +327,12 @@ class Daemon:
             self.store.update(source=source, status=LISTENING)
         else:
             self.store.update(source=self.source.source, status=self._capture_status)
+
+    def _tab_muted(self, muted: bool):
+        """Muting yourself in Meet mutes Midas's microphone too."""
+        if self.mic and muted != self.store.mic_muted:
+            log.info("Meet: you %s", "muted yourself" if muted else "unmuted")
+            self.set_mic_muted(muted)
 
     def _start_overlay(self):
         binary = BIN_DIR / "midas-overlay"

@@ -148,9 +148,10 @@ class TabAudio:
     over a Unix socket only this user may open. While a tab is sent, it is the call's
     audio; the app tap is set aside, so nothing is heard twice."""
 
-    def __init__(self, path: Path, on_change=None):
+    def __init__(self, path: Path, on_change=None, on_mute=None):
         self.path = path
         self.on_change = on_change or (lambda active, title: None)
+        self.on_mute = on_mute or (lambda muted: None)
         self.active = False
         self.title = ""
         self._queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=600)
@@ -196,6 +197,8 @@ class TabAudio:
                         self._queue.put_nowait(samples)
                     except (ValueError, queue.Full):
                         continue
+                elif kind == "mute":
+                    self.on_mute(bool(message.get("muted")))
                 elif kind == "stop":
                     break
         if self.active:
