@@ -353,6 +353,21 @@ class Daemon:
         log.info("microphone %s", "muted" if muted else "unmuted")
         return {"muted": self.store.mic_muted}
 
+    def _echo(self, text: str, segment: Segment) -> bool:
+        """The other side heard again through the user's speakers: the microphone line repeats
+        what the call said at the same moment. A line of the user's own, even one said over
+        someone else, has words of its own and stays."""
+        words = set(re.findall(r"\w+", text.lower()))
+        if len(words) < 2:
+            return False
+        events, partial = self.store.meeting()
+        nearby = [e["text"] for e in events[-20:] if e["kind"] == TRANSCRIPT and e.get("speaker") != YOU and abs(e["ts"] - segment.at) < 15]
+        for other in nearby + [partial]:
+            heard = set(re.findall(r"\w+", other.lower()))
+            if heard and len(words & heard) / len(words) >= 0.6:
+                return True
+        return False
+
     def _enqueue(self, segment: Segment):
         with self._jobs:
             if segment.kind == "final":
@@ -395,6 +410,9 @@ class Daemon:
                 continue
             if segment.speaker == YOU:
                 if text and not (self.store.mic_muted or self.store.paused):
+                    if self._echo(text, segment):
+                        log.debug("dropped an echo of the call: %s", text)
+                        continue
                     self._new_meeting_if_due()
                     self.store.add(TRANSCRIPT, text, speaker=YOU)
                     context[YOU] = text
