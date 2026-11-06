@@ -45,7 +45,13 @@ The line under the **Answer** button always says which copilot answers.
 
 ## Midas for Chrome
 
-The optional extension sends one Chrome tab's audio to Midas when you click its button on that tab, and stops when you click again or close the tab. It needs Chrome's `tabCapture`, `offscreen` and `nativeMessaging` permissions. The audio goes from the extension to a native messaging host that only this extension may start, and from there to the Midas daemon over a Unix socket only your user can open (`logs/tab.sock`); nothing goes over the network, and the daemon's HTTP API stays closed to browsers. On Google Meet the extension reads one thing from the page, whether your microphone button is muted, to mute Midas's microphone with it.
+The optional extension sends one Chrome tab's audio to Midas when you click its button on that tab, and stops when you click again or close the tab. Before the first time, it shows what it does and asks you to allow it; you can withdraw that consent in its options. It needs Chrome's `tabCapture`, `offscreen`, `nativeMessaging` and `storage` (to remember your consent) permissions.
+
+- **What it handles:** the audio of the tab you send (personal communications), and on Google Meet one thing on the page, whether your microphone button is muted (website content). It keeps neither; the audio is passed on as it plays.
+- **Who gets it:** only the Midas app on your Mac, through a native messaging host that only this extension may start, and from there the Midas daemon over a Unix socket only your user can open (`logs/tab.sock`). The extension sends nothing over the network, and the daemon's HTTP API stays closed to browsers. In the Midas app the audio is transcribed on your Mac; the text goes to Anthropic only when you ask the Claude copilot for an answer, as described above, and never with a local model.
+- **What it never does:** sell or share this data, use it for advertising or credit decisions, or let people read it. Nobody at Midas receives it: there are no Midas servers.
+
+The use of information received from Midas for Chrome adheres to the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/policies), including the Limited Use requirements.
 
 ## What Midas never does
 
