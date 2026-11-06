@@ -107,6 +107,18 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 - The panel's settings (⚙︎) pick Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
 - **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
 
+### Midas for Chrome
+
+A call in Chrome (Google Meet, or Zoom or Teams on the web) shares Chrome's audio with every other tab: a video in another tab would be heard too. **Midas for Chrome** sends Midas one tab instead.
+
+1. In Chrome, open `chrome://extensions`, turn on **Developer mode** and choose **Load unpacked**.
+2. Pick `~/Library/Application Support/Midas/extension` (press ⌘⇧G in the folder picker and paste the path). `./midas install` puts it there and tells Chrome how to reach Midas.
+3. On the call's tab, click the Midas button in Chrome's toolbar. Its badge reads **ON** while Midas hears that tab, and the panel names it. Click it again, or close the tab, to stop.
+
+- The tab keeps playing for you; Midas gets a copy. It goes to Midas through a native messaging host that only this extension may start, and nothing leaves your Mac.
+- On Google Meet, muting yourself in Meet mutes Midas's microphone too, and unmuting unmutes it. The extension reads only the microphone button's state on the page.
+- While a tab is sent, Midas sets its own capture of the app aside, so nothing is heard twice; afterwards it goes back to **Listen to**.
+
 ### Local models with Ollama
 
 1. Install [Ollama](https://ollama.com/download) and pull a model, for example `ollama pull llama3.2`. Small models (around 3–4B parameters) answer fastest; larger ones such as `qwen3:8b` or `gemma3:12b` give better answers but take longer.
