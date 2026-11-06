@@ -68,10 +68,30 @@ class Daemon:
             if config.local_only:
                 settings["provider"] = "ollama"
             self.store.copilot = settings
-        self.map = MeetingMap(session)
-        if carried := self.map.carry_over(SESSIONS_DIR, config.carry_over_days):
+        self.map_builder = MapBuilder(self.store, config, self._new_map(session), lambda: self.store.copilot or {})
+
+    def _new_map(self, session) -> MeetingMap:
+        meeting_map = MeetingMap(session)
+        if carried := meeting_map.carry_over(SESSIONS_DIR, self.config.carry_over_days):
             log.info("map: %d open item(s) carried over from the last meeting", carried)
-        self.map_builder = MapBuilder(self.store, config, self.map, lambda: self.store.copilot or {})
+        return meeting_map
+
+    def _new_meeting_if_due(self):
+        """Speech after a long quiet is most likely another meeting."""
+        gap = self.config.meeting_gap_minutes * 60
+        if gap > 0 and time.time() - self.store.last_activity() >= gap:
+            self._start_meeting()
+
+    def _start_meeting(self):
+        """A new meeting gets its own log and map, and the Claude copilot starts over, so
+        nothing said before it reaches the copilot."""
+        session = SESSIONS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M}.md"
+        self.store.new_meeting(session)
+        self.map_builder.new_meeting(self._new_map(session))
+        if self._claude and self._claude.poll() is None:
+            self._restart_claude.set()
+            self._claude.terminate()
+        log.info("new meeting: %s", session.name)
 
     def run(self):
         try:
@@ -303,6 +323,7 @@ class Daemon:
             if segment.kind == "final":
                 last_final_id = segment.id
                 if text:
+                    self._new_meeting_if_due()
                     self.store.add(TRANSCRIPT, text)
                     context = text
                     log.info("» %s", text)

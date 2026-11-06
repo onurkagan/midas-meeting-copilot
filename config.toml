@@ -63,6 +63,10 @@
 # so sound from before the meeting can't reach it. 0 lets it read the whole meeting.
 # recent_minutes = 10
 
+# Speech after this many quiet minutes starts a new meeting: its own log and map, and the
+# copilot starts over without the last one. 0 keeps one meeting per run.
+# meeting_gap_minutes = 15
+
 # Meeting map (the panel's Map tab): topics, questions put to you, your answers, decisions and
 # action items, saved next to each meeting log. With a local model it follows the meeting by
 # itself; Claude updates it only when you ask (Answer, Summary, Update map), unless auto_answer.

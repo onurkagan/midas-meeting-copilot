@@ -126,14 +126,13 @@ final class MidasClient: ObservableObject {
     func apply(_ snapshot: Snapshot, since: Int) {
         let reminder = snapshot.privacy?.reminder == true
         if snapshot.session != self.snapshot?.session {
-            // A (re)started daemon numbers its events from 1 again: start over.
+            // A new meeting (the daemon starts one after a long quiet) or a restarted daemon,
+            // which numbers its events from 1 again: start over.
             events = since == 0 ? snapshot.events : []
             noticeDue = reminder
         } else {
             let last = events.last?.id ?? 0
-            let fresh = snapshot.events.filter { $0.id > last }
-            if reminder, startsMeeting(fresh, session: snapshot.session) { noticeDue = true }
-            events += fresh
+            events += snapshot.events.filter { $0.id > last }
         }
         self.snapshot = snapshot
         connected = true
@@ -213,13 +212,6 @@ final class MidasClient: ObservableObject {
         }
         guard let spoken = events.last(where: { $0.kind == "transcript" })?.ts else { return false }
         return Date().timeIntervalSince1970 - spoken >= 180
-    }
-
-    /// Speech after 15 quiet minutes is most likely another meeting.
-    private func startsMeeting(_ fresh: [MidasEvent], session: Double) -> Bool {
-        guard let first = fresh.first(where: { $0.kind == "transcript" })?.ts else { return false }
-        let previous = events.last(where: { $0.kind == "transcript" })?.ts ?? session
-        return first - previous >= 15 * 60
     }
 
     func dismissNotice() { noticeDue = false }

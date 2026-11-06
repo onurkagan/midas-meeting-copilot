@@ -69,6 +69,9 @@ class Config:
     # A copilot reads only what was said in the last this-many minutes (your requests always
     # go), so sound from before the meeting can't reach it; 0 lets it read the whole meeting.
     recent_minutes: int = 10
+    # Speech after this many quiet minutes starts a new meeting: its own log and map, and the
+    # copilot starts over without the last one; 0 keeps one meeting per run.
+    meeting_gap_minutes: int = 15
     # The meeting map: topics, questions put to you, your answers, decisions and action items.
     # With a local model it follows the meeting by itself, at most every map_interval_s.
     # Claude updates it only when you ask (Answer, Summary, Update map), unless auto_answer.

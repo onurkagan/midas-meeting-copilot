@@ -1,6 +1,7 @@
 """Thread-safe event log shared by the transcriber, the HTTP API and the session file.
 
-Event ids are consecutive from 1, so "everything after cursor N" is events[N:].
+Event ids are consecutive from 1, so "everything after cursor N" is events[N:]. They keep
+counting across meetings; only the current meeting's events are handed out.
 """
 
 import logging
@@ -24,8 +25,11 @@ log = logging.getLogger("midas")
 class Store:
     def __init__(self, session_file: Path, window_s: float = 0):
         self.session_file = session_file
-        # Identifies this run, so the panel notices a restarted daemon (ids start at 1 again).
+        # Identifies this meeting, so the panel starts over when a new one begins (or the
+        # daemon restarts and numbers its events from 1 again).
         self.started = time.time()
+        # Where the current meeting starts in _events; nothing before it is handed out.
+        self.meeting_start = 0
         # How far back a copilot may read, in seconds (0: the whole meeting). The user's own
         # requests always go.
         self.window_s = window_s
@@ -51,9 +55,24 @@ class Store:
         self.map_info: dict = {}
         # Seconds from a request to its answer, per copilot, for /api/health.
         self._latencies: deque[tuple[str, float]] = deque(maxlen=500)
-        session_file.parent.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now().strftime("%d.%m.%Y %H:%M")
-        session_file.write_text(f"# Midas meeting log — {stamp}\n\n", encoding="utf-8")
+        # The log is written once the meeting has something in it, so a Midas that ran
+        # through no meeting leaves no empty file behind.
+        self._logged = False
+        self._file = threading.Lock()
+
+    def new_meeting(self, session_file: Path):
+        """Starts a new meeting: its own log, and nothing from before it goes to a copilot."""
+        with self._cond:
+            self.session_file = session_file
+            self.started = time.time()
+            self.meeting_start = len(self._events)
+            self._logged = False
+            self.partial = ""
+            self.draft = ""
+            self._cond.notify_all()
+
+    def _meeting(self) -> list[dict]:
+        return self._events[self.meeting_start :]
 
     def _recent(self, events: list[dict]) -> list[dict]:
         """Drops what was said longer ago than the window; requests always stay."""
@@ -123,21 +142,34 @@ class Store:
             self._cond.notify_all()
 
     def conversation(self) -> tuple[list[dict], str]:
-        """Every event so far and the sentence still being spoken."""
+        """Every event so far (indexed by id, so earlier meetings too) and the sentence
+        still being spoken."""
         with self._cond:
             return list(self._events), self.partial
 
-    def recent(self, kinds: tuple[str, ...], limit: int) -> tuple[int, list[dict]]:
-        """The last `limit` events of these kinds, within the window."""
+    def last_activity(self) -> float:
+        """When the current meeting last had a line, a request, an answer or a pause."""
         with self._cond:
-            matching = [e for e in self._recent(self._events) if e["kind"] in kinds]
+            meeting = self._meeting()
+            return meeting[-1]["ts"] if meeting else self.started
+
+    def meeting(self) -> tuple[list[dict], str]:
+        """The current meeting's events and the sentence still being spoken."""
+        with self._cond:
+            return self._meeting(), self.partial
+
+    def recent(self, kinds: tuple[str, ...], limit: int) -> tuple[int, list[dict]]:
+        """The current meeting's last `limit` events of these kinds, within the window."""
+        with self._cond:
+            matching = [e for e in self._recent(self._meeting()) if e["kind"] in kinds]
             return len(self._events), matching[-limit:] if limit > 0 else []
 
     def pending_requests(self) -> list[dict]:
         """Requests made after the last answer, e.g. while the copilot was restarting."""
         with self._cond:
-            last_answer = max((e["id"] for e in self._events if e["kind"] == ANSWER), default=0)
-            return [e for e in self._events if e["kind"] == REQUEST and e["id"] > last_answer]
+            meeting = self._meeting()
+            last_answer = max((e["id"] for e in meeting if e["kind"] == ANSWER), default=0)
+            return [e for e in meeting if e["kind"] == REQUEST and e["id"] > last_answer]
 
     def wait(self, cursor: int, timeout: float, auto: bool, settle: float = 0.6) -> tuple[int, list[dict], str]:
         """Long-poll for transcript lines and user requests after `cursor`.
@@ -153,6 +185,8 @@ class Store:
             self.claude_waiting += 1
             try:
                 while True:
+                    # A new meeting starts over: nothing from before it is handed out.
+                    cursor = max(cursor, self.meeting_start)
                     fresh = [e for e in self._events[cursor:] if e["kind"] in (TRANSCRIPT, REQUEST)]
                     remaining = deadline - time.monotonic()
                     if any(e["kind"] == REQUEST for e in fresh):
@@ -173,8 +207,9 @@ class Store:
         """Panel state plus every event after id `since`, so the panel can keep the full
         timeline while fetching only what is new."""
         with self._cond:
-            answers = [e for e in self._events if e["kind"] == ANSWER]
-            requests = [e for e in self._events if e["kind"] == REQUEST]
+            meeting = self._meeting()
+            answers = [e for e in meeting if e["kind"] == ANSWER]
+            requests = [e for e in meeting if e["kind"] == REQUEST]
             if self.copilot_state:
                 claude = self.copilot_state
             elif self.claude_waiting:
@@ -198,10 +233,19 @@ class Store:
                 "map": self.map_info or None,
                 "session": self.started,
                 "count": len(self._events),
-                "events": self._events[max(since, 0) :],
+                "events": self._events[max(since, self.meeting_start) :],
             }
 
     def _append_to_file(self, event: dict):
+        with self._file:
+            if not self._logged:
+                self._logged = True
+                self.session_file.parent.mkdir(parents=True, exist_ok=True)
+                stamp = datetime.fromtimestamp(self.started).strftime("%d.%m.%Y %H:%M")
+                self.session_file.write_text(f"# Midas meeting log — {stamp}\n\n", encoding="utf-8")
+            self._write(event)
+
+    def _write(self, event: dict):
         if event["kind"] == TRANSCRIPT:
             line = f"**[{event['time']}]** {event['text']}\n\n"
         elif event["kind"] == ANSWER:

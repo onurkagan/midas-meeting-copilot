@@ -140,7 +140,7 @@ class LocalCopilot:
                     ANSWER, "Pull one in Terminal (for example `ollama pull llama3.2`), then pick it in ⚙︎.",
                     "No Ollama model yet")  # fmt: skip
             return
-        events, partial = self.store.conversation()
+        events, partial = self.store.meeting()
         messages = build_messages(events, partial, auto, self.config.ollama_context)
         self.store.update(copilot_state="thinking", draft="")
         started, shown, text = time.monotonic(), 0.0, ""

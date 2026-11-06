@@ -211,7 +211,17 @@ class MapBuilder:
         self._save = threading.Event()
         self._last_pass = 0.0
         self._answers_seen = 0
+        # A pass and a switch to a new meeting's map never overlap.
+        self._lock = threading.Lock()
         self._publish()
+
+    def new_meeting(self, meeting_map: MeetingMap):
+        """A new meeting gets its own map, which reads from the meeting's first line; the
+        last one stays saved beside its log."""
+        with self._lock:
+            meeting_map.cursor = self.store.meeting_start
+            self.map = meeting_map
+            self._publish()
 
     # Called from the API -----------------------------------------------------------------
 
@@ -241,11 +251,12 @@ class MapBuilder:
             asked = self._wake.wait(5)
             self._wake.clear()
             try:
-                if asked or self._answered() or self._due():
-                    self._pass()
-                if self._save.is_set():
-                    self._save.clear()
-                    self._export()
+                with self._lock:
+                    if asked or self._answered() or self._due():
+                        self._pass()
+                    if self._save.is_set():
+                        self._save.clear()
+                        self._export()
             except Exception:
                 log.exception("map pass failed")
                 self._state("error: the map couldn't be updated")
@@ -308,7 +319,8 @@ class MapBuilder:
                         break
                     chunk.append(event)
                 fresh = fresh[len(chunk) :]
-                earlier = [e for e in events[: chunk[0]["id"] - 1] if e["kind"] in (TRANSCRIPT, ANSWER)][-CONTEXT_LINES:]
+                before = events[self.store.meeting_start : chunk[0]["id"] - 1]
+                earlier = [e for e in before if e["kind"] in (TRANSCRIPT, ANSWER)][-CONTEXT_LINES:]
                 prompt = build_prompt(self.map.outline(), earlier, chunk, user_context())
                 ops = model.ops(prompt, abort)
                 if ops is None:  # stepped aside for an answer
