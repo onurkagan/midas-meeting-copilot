@@ -24,7 +24,7 @@ NOTICES = {
 # Only Midas's own logs (sessions/YYYY-MM-DD_HH-MM.md) are ever deleted, with the meeting
 # map files saved beside them.
 SESSION_GLOB = "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9].md"
-MAP_SUFFIXES = (".map.json", ".map.md", ".canvas", ".png")
+MAP_SUFFIXES = (".map.json", ".map.md", ".map.html", ".map.pdf", ".canvas", ".png")
 
 
 def panel_privacy(config: Config) -> dict:
