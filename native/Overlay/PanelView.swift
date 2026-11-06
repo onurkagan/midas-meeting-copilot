@@ -33,6 +33,11 @@ struct OverlayView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 10)
             }
+            if let source = client.snapshot?.source, source.browser, source.state == "listening" {
+                BrowserNote(name: source.name)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            }
             if client.noticeDue, let notices = client.snapshot?.privacy?.notices, !notices.isEmpty {
                 ConsentBanner(notices: notices, dismiss: client.dismissNotice)
                     .padding(.horizontal, 12)
@@ -503,6 +508,28 @@ private struct ListenTo: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// Listening to a browser means listening to every tab in it, so the panel says so for as
+/// long as it lasts.
+private struct BrowserNote: View {
+    let name: String
+    @Environment(\.tide) private var tide
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Text("!").font(Tide.font(11, .heavy)).foregroundStyle(.orange)
+            Text("Every tab in \(name) is being listened to, not only the call.")
+                .font(Tide.font(11.5, .medium))
+                .foregroundStyle(tide.quietText)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.12)))
+        .accessibilityElement(children: .combine)
     }
 }
 
