@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Midas for Chrome</title>
+<style>
+  :root { color-scheme: light dark; --ink: #0f2333; --muted: #4b6070; --card: #ffffff; --page: #eef5f9; --accent: #1f6fb8; --line: #d6e3ec; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #e6f0f6; --muted: #9fb3c2; --card: #0c1d29; --page: #07141d; --accent: #5aa9e6; --line: #1d3445; } }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+  main { max-width: 620px; margin: 48px auto; padding: 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  header img { width: 40px; height: 40px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; margin: 22px 0 4px; }
+  p { margin: 4px 0; color: var(--muted); }
+  p strong { color: var(--ink); }
+  .actions { display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; border-radius: 10px; padding: 9px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #status { margin-top: 16px; font-weight: 600; color: var(--ink); }
+  a { color: var(--accent); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <header><img src="icons/icon48.png" alt=""><h1>Before Midas hears a tab</h1></header>
+    <p>Midas for Chrome works with the Midas app on this Mac. Please read what it does before you allow it.</p>
+
+    <h2>What it sends</h2>
+    <p>When you click the Midas button on a tab, <strong>that tab's audio</strong> goes to the Midas app on this Mac, which transcribes it. Only that tab, and only until you click the button again or close the tab. The button reads <strong>ON</strong> meanwhile, and the tab keeps playing for you.</p>
+
+    <h2>Where it goes</h2>
+    <p>The extension sends the audio <strong>only to the Midas app on this Mac</strong>, through Chrome's native messaging; it sends nothing over the internet. In the Midas app the transcript stays on your Mac, unless you ask its Claude copilot for an answer: then the recent text of the meeting goes to <strong>Anthropic</strong> to write it. With a local Ollama model, nothing leaves your Mac.</p>
+
+    <h2>On Google Meet</h2>
+    <p>The extension reads <strong>one thing</strong> on the page: whether your microphone is muted, so Midas mutes its own microphone with you. It reads nothing else.</p>
+
+    <h2>The other people in the call</h2>
+    <p>The transcript holds what they say too. Tell them you're transcribing, and get their consent where the law or your organization requires it.</p>
+
+    <p style="margin-top: 18px"><a href="https://github.com/onurkagan/midas-meeting-copilot/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy policy</a></p>
+
+    <div class="actions" id="ask">
+      <button class="primary" id="allow">Allow</button>
+      <button id="cancel">Not now</button>
+    </div>
+    <div class="actions" id="given" hidden>
+      <button id="withdraw">Withdraw my consent</button>
+    </div>
+    <p id="status" role="status"></p>
+  </div>
+</main>
+<script src="consent.js"></script>
+</body>
+</html>

@@ -11,6 +11,16 @@ chrome.action.onClicked.addListener(async (tab) => {
     stop("stopped from the toolbar");
     return;
   }
+  // Nothing is captured before the user has read what the extension does and allowed it.
+  const { consent } = await chrome.storage.local.get("consent");
+  if (!consent) {
+    chrome.tabs.create({ url: `consent.html?tab=${tab.id}` });
+    return;
+  }
+  await start(tab);
+});
+
+async function start(tab) {
   if (capturing) stop("another tab chosen");
   try {
     // Asked here, in the click: Chrome allows tab capture only on the user's gesture.
@@ -27,10 +37,12 @@ chrome.action.onClicked.addListener(async (tab) => {
     await ensureOffscreen();
     await chrome.runtime.sendMessage({ target: "offscreen", type: "start", streamId });
     badge("ON", "#1B62A8", `Midas hears this tab. Click to stop.`);
+    return true;
   } catch (error) {
     stop(`couldn't start: ${error.message || error}`);
+    return false;
   }
-});
+}
 
 function onHostMessage(message) {
   if (message.type === "error") {
@@ -39,9 +51,20 @@ function onHostMessage(message) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message, sender, reply) => {
   // Only this extension's own pages and scripts; web pages can't message it at all.
   if (sender.id !== chrome.runtime.id || message.target !== "background") return;
+  if (message.type === "consented") {
+    // Allowed on the consent page: start on the tab whose button was clicked, if Chrome
+    // still lets us (it does until that tab navigates); otherwise the user clicks again.
+    chrome.tabs.get(message.tabId).then(start, () => false).then(reply);
+    return true;
+  }
+  if (message.type === "withdrawn") {
+    if (capturing) stop("consent withdrawn");
+    reply(true);
+    return;
+  }
   if (message.type === "audio" && port) {
     port.postMessage({ type: "audio", pcm: message.pcm });
   } else if (message.type === "ended") {
