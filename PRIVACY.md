@@ -43,6 +43,10 @@ The line under the **Answer** button always says which copilot answers.
 
 **Nothing else.** Once the Whisper model is downloaded, Midas makes no other network requests of its own. Setup downloads that model from Hugging Face, and the installer downloads Python, Claude Code and Midas itself. Claude Code and Ollama are separate programs with their own privacy policies.
 
+## Midas for Chrome
+
+The optional extension sends one Chrome tab's audio to Midas when you click its button on that tab, and stops when you click again or close the tab. It needs Chrome's `tabCapture`, `offscreen` and `nativeMessaging` permissions. The audio goes from the extension to a native messaging host that only this extension may start, and from there to the Midas daemon over a Unix socket only your user can open (`logs/tab.sock`); nothing goes over the network, and the daemon's HTTP API stays closed to browsers. On Google Meet the extension reads one thing from the page, whether your microphone button is muted, to mute Midas's microphone with it.
+
 ## What Midas never does
 
 - It doesn't join the meeting, add a bot or install a virtual audio device.
