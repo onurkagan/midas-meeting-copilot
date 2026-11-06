@@ -48,8 +48,8 @@ def list_apps() -> list[dict]:
 class SystemAudio:
     """Runs the native Core Audio tap (bin/midas-audio) and restarts it if it dies.
 
-    listen_to: AUTO, ALL or a bundle ID. With an app (or AUTO), midas-audio taps only that
-    app, and only while it is in a call."""
+    listen_to: AUTO, ALL or a bundle ID. An app chosen by name is heard whenever it plays;
+    AUTO hears whichever app is in a call, only during the call."""
 
     def __init__(self, listen_to: str = AUTO, on_status=None, on_source=None, microphone: bool = False):
         self.binary = BIN_DIR / "midas-audio"
@@ -124,7 +124,12 @@ class SystemAudio:
                 self.on_status(LISTENING)
             elif line.startswith("[midas-audio] waiting: ") or line.startswith("[midas-audio] stopped: "):
                 self._report(app="", name="", state="waiting")
-                self.on_status(WAITING)
+                if self.listen_to in (AUTO, ALL):
+                    self.on_status(WAITING)
+                elif line.startswith("[midas-audio] waiting: "):
+                    # "waiting: Google Chrome isn't playing anything": an app chosen by name.
+                    name = line.removeprefix("[midas-audio] waiting: ").split(" isn't", 1)[0]
+                    self.on_status(f"waiting for {name}")
             elif "silence:" in line:
                 # A missing permission is reported as an error line instead.
                 self.on_status(SILENT_STATUS)
