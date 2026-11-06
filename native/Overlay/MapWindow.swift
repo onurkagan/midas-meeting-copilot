@@ -58,9 +58,10 @@ struct MapWindowView: View {
             if let map = client.meetingMap, !map.nodes.isEmpty {
                 HStack(spacing: 0) {
                     GeometryReader { space in
-                        // Fits the map to the window's width (down to 60 %), then scrolls.
-                        let full = CGSize(width: map.width + 56, height: map.height + 56)
-                        let scale = min(1, max(0.6, space.size.width / full.width))
+                        // Fits the map to the window's width (down to 55 %), then scrolls.
+                        let graph = MapMetrics.layout(map).size
+                        let full = CGSize(width: graph.width + 56, height: graph.height + 56)
+                        let scale = min(1, max(0.55, space.size.width / full.width))
                         ScrollView([.horizontal, .vertical]) {
                             MapGraph(map: map, selected: selected) { id in selected = selected == id ? nil : id }
                                 .padding(28)

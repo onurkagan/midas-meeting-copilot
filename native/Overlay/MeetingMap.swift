@@ -42,16 +42,14 @@ struct MapNode: Decodable, Equatable, Identifiable {
     let sources: [MapSource]
     let time: String
     let first: Int
-    var side: String? = nil
+    var side: String? = nil  // "left" or "right" of the meeting on the graph
     var sub: String? = nil  // "Risk" or "Open question"
     var owner: String? = nil
     var due: String? = nil
     var said: Bool? = nil
     var done: Bool? = nil
     var carried: String? = nil  // the earlier meeting it came from, "2026-11-04_10-00"
-    var x: Double? = nil
-    var y: Double? = nil
-    var align: String? = nil  // "end": x is the right edge, "start": the left edge, "middle": the centre
+    var y: Double? = nil  // its row on the graph; `side` says which side of the meeting
 
     /// What kind of item this is, as the panel names it.
     var kindName: String {
@@ -87,11 +85,6 @@ struct MapLink: Decodable, Equatable {
     let to: String
 }
 
-struct MapPoint: Decodable, Equatable {
-    let x: Double
-    let y: Double
-}
-
 struct MeetingMapData: Decodable, Equatable {
     let version: Int
     let state: String
@@ -99,9 +92,7 @@ struct MeetingMapData: Decodable, Equatable {
     let date: String
     let start: String
     let updated: String
-    let width: Double
     let height: Double
-    let center: MapPoint
     let nodes: [MapNode]
     let links: [MapLink]
     var saved: MapSaved? = nil

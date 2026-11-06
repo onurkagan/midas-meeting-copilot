@@ -3,40 +3,107 @@ import SwiftUI
 
 // MARK: - Geometry
 
-/// Where each item of the map sits. The daemon gives every node an anchor (meeting_map.py
-/// layout); the panel sizes the pills to their text, as the page and the saved picture do.
+/// Where each item of the map sits. The daemon puts every node on a side of the meeting and
+/// in a row (meeting_map.py layout); the columns are set here, from the labels as SwiftUI
+/// sets them, so a long label never runs off the map or under the meeting.
 enum MapMetrics {
     static let pill: CGFloat = 32
     static let topic: CGFloat = 36
-    static let center = CGSize(width: 210, height: 60)
+    static let longTopic: CGFloat = 54  // a topic name on two lines
+    static let centerHeight: CGFloat = 60
+    /// A longer topic name goes on two lines, a longer item ends in "…"; the side panel
+    /// shows them whole.
+    static let widestTopic: CGFloat = 220
+    static let widestItem: CGFloat = 300
+    static let widestCenter: CGFloat = 320
+    /// The space on each side of a topic's name.
+    static let topicInset: CGFloat = 14
+    /// Room for the curves: between a topic and its items, and between the meeting and its topics.
+    static let reach: CGFloat = 44
+    static let spread: CGFloat = 40
+
+    struct Layout {
+        var boxes: [String: CGRect] = [:]
+        var size: CGSize = .zero
+        /// The meeting's x: links that cross it run behind it.
+        var middle: CGFloat { boxes["meeting"]?.midX ?? 0 }
+    }
 
     private static var widths: [String: CGFloat] = [:]
 
-    /// A pill's width: its label as SwiftUI sets it, plus the badge and padding. (Measured
-    /// by SwiftUI itself: AppKit measures the variable font at its regular weight.)
-    static func width(of node: MapNode) -> CGFloat {
-        let topic = node.type == "topic"
-        let key = (topic ? "t|" : "i|") + node.label
+    /// A text's width as SwiftUI sets it. (AppKit measures the variable font at its regular
+    /// weight, so SwiftUI measures it itself.)
+    private static func measure(_ key: String, _ text: Text) -> CGFloat {
         if let width = widths[key] { return width }
-        let text = Text(node.label).font(Tide.font(topic ? 14 : 12.5, topic ? .bold : .semibold)).fixedSize()
-        let measured = MainActor.assumeIsolated { NSHostingView(rootView: text).fittingSize.width }
-        let width = ceil(measured) + (topic ? 36 : 46)
+        let width = ceil(MainActor.assumeIsolated { NSHostingView(rootView: text.fixedSize()).fittingSize.width })
         widths[key] = width
         return width
     }
 
-    static func boxes(_ map: MeetingMapData) -> [String: CGRect] {
-        var boxes: [String: CGRect] = [:]
-        for node in map.nodes {
-            guard let x = node.x, let y = node.y else { continue }
-            let w = width(of: node)
-            let h = node.type == "topic" ? topic : pill
-            let left = node.align == "end" ? x - w : node.align == "start" ? x : x - w / 2
-            boxes[node.id] = CGRect(x: left, y: y - h / 2, width: w, height: h)
+    /// A pill's width: its label plus the badge and padding, up to the widest a column allows.
+    static func width(of node: MapNode) -> CGFloat {
+        node.type == "topic" ? min(label(node) + 36, widestTopic) : min(label(node) + 46, widestItem)
+    }
+
+    /// A topic whose name doesn't fit on one line in the widest topic gets two.
+    static func height(of node: MapNode) -> CGFloat {
+        guard node.type == "topic" else { return pill }
+        return label(node) > widestTopic - 2 * topicInset ? longTopic : topic
+    }
+
+    private static func label(_ node: MapNode) -> CGFloat {
+        node.type == "topic"
+            ? measure("t|" + node.label, Text(node.label).font(Tide.font(14, .bold)))
+            : measure("i|" + node.label, Text(node.label).font(Tide.font(12.5, .semibold)))
+    }
+
+    /// The meeting in the middle: its mark, title and date.
+    static func centerWidth(_ map: MeetingMapData) -> CGFloat {
+        let title = measure("m|" + map.title, Text(map.title).font(Tide.font(14.5, .heavy)))
+        let date = "\(map.date) · \(map.start)"
+        let line = measure("d|" + date, Text(date).font(Tide.font(10.5, .medium)))
+        // The mark, spacing and padding take 68; the rest is slack for the heavy title.
+        return min(max(max(title, line) + 80, 210), widestCenter)
+    }
+
+    /// Left to right: items, topics, the meeting, topics, items. Each column is as wide as
+    /// its widest pill, and a side with nothing on it takes no room.
+    static func layout(_ map: MeetingMapData) -> Layout {
+        var topics: [String: CGFloat] = ["left": 0, "right": 0]
+        var items: [String: CGFloat] = ["left": 0, "right": 0]
+        for node in map.nodes where node.y != nil {
+            let side = node.side == "left" ? "left" : "right"
+            if node.type == "topic" {
+                topics[side] = max(topics[side]!, width(of: node))
+            } else {
+                items[side] = max(items[side]!, width(of: node))
+            }
         }
-        boxes["meeting"] = CGRect(x: map.center.x - center.width / 2, y: map.center.y - center.height / 2,
-                                  width: center.width, height: center.height)
-        return boxes
+        var x: CGFloat = 0
+        let leftItemsEnd = items["left"]!
+        if leftItemsEnd > 0 { x = leftItemsEnd + reach }
+        let leftTopics = x + topics["left"]! / 2
+        if topics["left"]! > 0 { x += topics["left"]! + spread }
+        let meeting = CGRect(x: x, y: map.height / 2 - centerHeight / 2, width: centerWidth(map), height: centerHeight)
+        x = meeting.maxX
+        if topics["right"]! > 0 { x += spread }
+        let rightTopics = x + topics["right"]! / 2
+        x += topics["right"]!
+        if items["right"]! > 0 { x += reach }
+        let rightItemsStart = x
+        x += items["right"]!
+
+        var layout = Layout(size: CGSize(width: x, height: map.height))
+        layout.boxes["meeting"] = meeting
+        for node in map.nodes {
+            guard let y = node.y else { continue }
+            let left = node.side == "left"
+            let w = width(of: node)
+            let h = height(of: node)
+            let minX = node.type == "topic" ? (left ? leftTopics : rightTopics) - w / 2 : left ? leftItemsEnd - w : rightItemsStart
+            layout.boxes[node.id] = CGRect(x: minX, y: y - h / 2, width: w, height: h)
+        }
+        return layout
     }
 
     struct Edge {
@@ -54,7 +121,7 @@ enum MapMetrics {
             guard let child = boxes[node.id], let parent = boxes[parentID] else { continue }
             var path = Path()
             if node.type == "answer", node.parent != nil {
-                stub(&path, from: parent, to: child, left: node.align == "end")
+                stub(&path, from: parent, to: child, left: node.side == "left")
             } else {
                 curve(&path, from: parent, to: child)
             }
@@ -63,9 +130,9 @@ enum MapMetrics {
         for link in map.links {
             guard let a = boxes[link.from], let b = boxes[link.to], let na = map.node(link.from), let nb = map.node(link.to) else { continue }
             var path = Path()
-            if na.align == nb.align {
+            if na.side == nb.side {
                 let (top, bottom) = a.minY < b.minY ? (a, b) : (b, a)
-                stub(&path, from: top, to: bottom, left: na.align == "end")
+                stub(&path, from: top, to: bottom, left: na.side == "left")
             } else {
                 curve(&path, from: a, to: b)
             }
@@ -152,13 +219,17 @@ struct MapPill: View {
 
     var body: some View {
         if node.type == "topic" {
+            // A rounded box as round as a one-line capsule, so a two-line name keeps the look.
+            let shape = RoundedRectangle(cornerRadius: MapMetrics.topic / 2, style: .continuous)
             Text(node.label)
                 .font(Tide.font(14, .bold))
                 .foregroundStyle(.white)
-                .lineLimit(1)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, MapMetrics.topicInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Capsule().fill(LinearGradient(colors: [Color(hex: 0x1B62A8), Color(hex: 0x2A8FB6)], startPoint: .topLeading, endPoint: .bottomTrailing)))
-                .overlay(Capsule().strokeBorder(selected ? tide.accentText : .clear, lineWidth: 2))
+                .background(shape.fill(LinearGradient(colors: [Color(hex: 0x1B62A8), Color(hex: 0x2A8FB6)], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                .overlay(shape.strokeBorder(selected ? tide.accentText : .clear, lineWidth: 2))
         } else {
             let color = MapPalette.color(node.type, dark: scheme == .dark)
             let draft = node.type == "answer" && node.said != true
@@ -211,7 +282,8 @@ struct MapGraph: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let boxes = MapMetrics.boxes(map)
+        let layout = MapMetrics.layout(map)
+        let boxes = layout.boxes
         let edges = MapMetrics.edges(map, boxes)
         let risk = MapPalette.color("open", dark: scheme == .dark)
         ZStack(alignment: .topLeading) {
@@ -219,13 +291,13 @@ struct MapGraph: View {
                 for edge in edges {
                     let active = selected != nil && (edge.from == selected || edge.to == selected)
                     // A link across the map runs behind the middle, so it stays faint.
-                    let across = edge.related && (boxes[edge.from]?.midX ?? 0 < map.center.x) != (boxes[edge.to]?.midX ?? 0 < map.center.x)
+                    let across = edge.related && (boxes[edge.from]?.midX ?? 0 < layout.middle) != (boxes[edge.to]?.midX ?? 0 < layout.middle)
                     let color = edge.related ? risk.opacity(across && !active ? 0.4 : 0.75) : active ? tide.accent : tide.muted.opacity(0.32)
                     let style = StrokeStyle(lineWidth: active ? 2.2 : 1.6, lineCap: .round, dash: edge.related ? [5, 5] : [])
                     context.stroke(edge.path, with: .color(color), style: style)
                 }
             }
-            .frame(width: map.width, height: map.height)
+            .frame(width: layout.size.width, height: layout.size.height)
             if let box = boxes["meeting"] {
                 MapCenter(map: map).frame(width: box.width, height: box.height).position(x: box.midX, y: box.midY)
             }
@@ -239,10 +311,11 @@ struct MapGraph: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("\(node.kindName): \(node.label)")
                         .accessibilityAddTraits(.isButton)
+                        .help(node.label)
                 }
             }
         }
-        .frame(width: map.width, height: map.height)
+        .frame(width: layout.size.width, height: layout.size.height)
     }
 }
 

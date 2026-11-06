@@ -29,11 +29,10 @@ SUBTYPES = {"risk": "Risk", "open_question": "Open question"}
 SOURCES = {"answer": ("answer",)}
 SPOKEN = ("transcript",)
 
-# Layout, in points: topics around the meeting, each topic's items in a column beside it,
-# in the order they came up. The same numbers draw the panel's map and the saved files.
-WIDTH = 1040
+# Layout, in points: topics on both sides of the meeting, each topic's items in a column
+# beside it, in the order they came up. The rows are set here; the panel measures the labels
+# and sets the columns (MapMetrics in MapViews.swift).
 ROW, GAP, TOP = 48, 36, 50
-LEFT_ITEMS, LEFT_TOPICS, CENTER, RIGHT_TOPICS, RIGHT_ITEMS = 240, 392, 520, 648, 800
 
 COLORS = {
     "topic": "#1F6FB8",
@@ -305,8 +304,7 @@ class MeetingMap:
     # Layout -----------------------------------------------------------------------------
 
     def layout(self) -> tuple[dict[str, dict], float]:
-        """Each node's anchor: x (its right edge on the left side, its left edge on the
-        right, its centre for topics), y (its centre) and that alignment; and the height."""
+        """Each node's side of the meeting and the y of its centre; and the map's height."""
         positions: dict[str, dict] = {}
         bottom = {"left": 0.0, "right": 0.0}
         for side in ("left", "right"):
@@ -314,11 +312,9 @@ class MeetingMap:
             for topic in sorted((t for t in self._topics() if t["side"] == side), key=lambda t: t["first"]):
                 rows = self._rows(topic["id"])
                 for index, row in enumerate(rows):
-                    x = LEFT_ITEMS if side == "left" else RIGHT_ITEMS
-                    positions[row["id"]] = {"x": x, "y": y + index * ROW, "align": "end" if side == "left" else "start"}
+                    positions[row["id"]] = {"side": side, "y": y + index * ROW}
                 span = max(len(rows), 1)
-                x = LEFT_TOPICS if side == "left" else RIGHT_TOPICS
-                positions[topic["id"]] = {"x": x, "y": y + (span - 1) * ROW / 2, "align": "middle"}
+                positions[topic["id"]] = {"side": side, "y": y + (span - 1) * ROW / 2}
                 bottom[side] = y + (span - 1) * ROW
                 y += span * ROW + GAP
         height = max(max(bottom.values()) + TOP, 200)
@@ -336,9 +332,7 @@ class MeetingMap:
                 "date": self.started.strftime("%-d %b %Y"),
                 "start": self.started.strftime("%H:%M"),
                 "updated": datetime.fromtimestamp(self.updated_at).strftime("%H:%M") if self.updated_at else "",
-                "width": WIDTH,
                 "height": height,
-                "center": {"x": CENTER, "y": height / 2},
                 "nodes": nodes,
                 "links": list(self.links),
                 "saved": dict(self.saved),
