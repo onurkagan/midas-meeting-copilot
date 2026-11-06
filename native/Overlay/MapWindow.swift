@@ -14,8 +14,11 @@ final class MapWindowController {
     }
 
     private func make(client: MidasClient) -> OverlayPanel {
+        // As large as the screen allows, up to where a whole map fits at a readable size.
+        let screen = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1220, height: 780)
+        let size = NSSize(width: min(1400, screen.width - 80), height: min(820, screen.height - 80))
         let panel = OverlayPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 1140, height: 700),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered, defer: false)
         panel.sharingType = .none  // excluded from screen sharing, screenshots and recordings
