@@ -11,6 +11,8 @@ BIN_DIR = ROOT / "bin"
 SESSIONS_DIR = ROOT / "sessions"
 LOGS_DIR = ROOT / "logs"
 PID_FILE = LOGS_DIR / "midas.pid"
+# Where Midas for Chrome's native host (tab_host.py) hands over a tab's audio.
+TAB_SOCKET = LOGS_DIR / "tab.sock"
 CONTEXT_FILE = ROOT / "context.md"
 COPILOT_FILE = ROOT / "copilot.json"
 # Full ids, not Claude Code's aliases: its `haiku` alias still means Haiku 4.5, which

@@ -1,7 +1,11 @@
 """Audio sources that yield 16 kHz mono float32 chunks of 100 ms."""
 
+import base64
 import json
 import logging
+import os
+import queue
+import socket
 import subprocess
 import tempfile
 import threading
@@ -137,6 +141,74 @@ class SystemAudio:
                 self.on_status(LISTENING)
             elif "error" in line:
                 self.on_status("audio capture error: " + line.split("error:", 1)[-1].strip())
+
+
+class TabAudio:
+    """A browser tab's audio, from Midas for Chrome through its native host (tab_host.py),
+    over a Unix socket only this user may open. While a tab is sent, it is the call's
+    audio; the app tap is set aside, so nothing is heard twice."""
+
+    def __init__(self, path: Path, on_change=None):
+        self.path = path
+        self.on_change = on_change or (lambda active, title: None)
+        self.active = False
+        self.title = ""
+        self._queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=600)
+
+    def serve(self, stop: threading.Event):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.unlink(missing_ok=True)
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        mask = os.umask(0o177)  # the socket is created readable by this user only
+        try:
+            server.bind(str(self.path))
+        finally:
+            os.umask(mask)
+        server.listen(1)
+        server.settimeout(1)
+        with server:
+            while not stop.is_set():
+                try:
+                    connection, _ = server.accept()
+                except TimeoutError:
+                    continue
+                self._receive(connection)
+        self.path.unlink(missing_ok=True)
+
+    def _receive(self, connection: socket.socket):
+        """One tab, until the extension stops sending it."""
+        with connection, connection.makefile("rb") as lines:
+            for raw in lines:
+                try:
+                    message = json.loads(raw)
+                except ValueError:
+                    continue
+                kind = message.get("type")
+                if kind == "start":
+                    self.title = " ".join(str(message.get("title") or "Chrome tab").split())[:60]
+                    self.active = True
+                    log.info("Midas for Chrome: sending a tab")
+                    self.on_change(True, self.title)
+                elif kind == "audio" and self.active:
+                    try:
+                        pcm = base64.b64decode(message.get("pcm") or "")
+                        samples = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.float32) / 32768.0
+                        self._queue.put_nowait(samples)
+                    except (ValueError, queue.Full):
+                        continue
+                elif kind == "stop":
+                    break
+        if self.active:
+            self.active = False
+            log.info("Midas for Chrome: tab stopped")
+            self.on_change(False, "")
+
+    def chunks(self, stop: threading.Event) -> Iterator[np.ndarray]:
+        while not stop.is_set():
+            try:
+                yield self._queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
 
 
 class FileAudio:

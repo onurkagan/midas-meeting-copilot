@@ -13,7 +13,14 @@ def main():
     run.add_argument("--model", help="mlx-community Whisper model")
     run.add_argument("--copilot", action="store_true", help="run Claude Code in the background as the copilot")
     commands.add_parser("mcp", help="MCP server for Claude Code (stdio)")
+    commands.add_parser("tab-host", help="native messaging host for Midas for Chrome (stdio)")
     args = parser.parse_args()
+
+    if args.command == "tab-host":
+        from .tab_host import main as tab_host_main
+
+        tab_host_main()
+        return
 
     if args.command == "mcp":
         from .mcp_server import main as mcp_main

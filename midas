@@ -44,6 +44,10 @@ case "${1:-help}" in
   mcp)
     exec "$PY" -m midas mcp
     ;;
+  tab-host | chrome-extension://*)
+    # Chrome starts the native host for Midas for Chrome with the extension's origin.
+    exec "$PY" -m midas tab-host
+    ;;
   start)
     shift
     if [[ "$("$PY" -c 'from midas.config import load_config; print(load_config().local_only)')" == "True" ]]; then

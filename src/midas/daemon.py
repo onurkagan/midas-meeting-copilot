@@ -13,10 +13,10 @@ from collections import deque
 from datetime import datetime
 
 from . import api
-from .audio import ALL, AUTO, LISTENING, SILENT_STATUS, WAITING, FileAudio, SystemAudio, list_apps
+from .audio import ALL, AUTO, LISTENING, SILENT_STATUS, FileAudio, SystemAudio, TabAudio, list_apps
 from .config import (
     BIN_DIR, CLAUDE_EFFORTS, CLAUDE_MODELS, COPILOT_FILE, COPILOT_PROVIDERS, LOGS_DIR, PID_FILE, ROOT,
-    SESSIONS_DIR, Config,
+    SESSIONS_DIR, TAB_SOCKET, Config,
 )  # fmt: skip
 from .local_copilot import LocalCopilot
 from .map_builder import MapBuilder
@@ -42,14 +42,16 @@ class Daemon:
         self.store = Store(session, window_s=config.recent_minutes * 60)
         self.store.privacy = panel_privacy(config)
         saved = self._saved_settings()
+        # A tab sent by Midas for Chrome stands in for the app tap while it lasts.
+        self.tab = None if input_file else TabAudio(TAB_SOCKET, on_change=self._tab_changed)
+        self._capture_status = LISTENING
+        self._feed = threading.Lock()
         if input_file:
             self.source = FileAudio(input_file)
             self.store.source = {"listen_to": "file", "app": "", "name": "", "state": "listening", "browser": False}
         else:
             listen_to = saved.get("listen_to") or config.listen_to
-            self.source = SystemAudio(
-                listen_to, on_status=self._audio_status, on_source=lambda source: self.store.update(source=source)
-            )
+            self.source = SystemAudio(listen_to, on_status=self._audio_status, on_source=self._source_changed)
         # The user's own voice, during the same calls (not with a test file).
         self.mic = None
         if config.microphone and not input_file:
@@ -129,6 +131,9 @@ class Daemon:
         threading.Thread(target=self._audio_loop, name="audio", daemon=True).start()
         if self.mic:
             threading.Thread(target=self._mic_loop, name="microphone", daemon=True).start()
+        if self.tab:
+            threading.Thread(target=self.tab.serve, args=(self.stop,), name="tab", daemon=True).start()
+            threading.Thread(target=self._tab_loop, name="tab audio", daemon=True).start()
         if self.copilot:
             threading.Thread(target=self._copilot_loop, name="copilot", daemon=True).start()
         threading.Thread(target=self.map_builder.run, args=(self.stop,), name="map", daemon=True).start()
@@ -306,8 +311,22 @@ class Daemon:
             return {"reachable": False, "url": self._ollama.url, "models": [], "error": str(error)}
 
     def _audio_status(self, text: str):
-        if self._ready.is_set():
+        self._capture_status = text  # what the app capture says, kept for after a tab
+        if self._ready.is_set() and not (self.tab and self.tab.active):
             self.store.update(status=text)
+
+    def _source_changed(self, source: dict):
+        if not (self.tab and self.tab.active):
+            self.store.update(source=source)
+
+    def _tab_changed(self, active: bool, title: str):
+        """A tab from Midas for Chrome is the call's audio while it lasts; then back to the app."""
+        if active:
+            source = {"listen_to": self.source.listen_to, "app": "tab", "name": title, "state": "listening",
+                      "browser": False, "tab": True}  # fmt: skip
+            self.store.update(source=source, status=LISTENING)
+        else:
+            self.store.update(source=self.source.source, status=self._capture_status)
 
     def _start_overlay(self):
         binary = BIN_DIR / "midas-overlay"
@@ -321,17 +340,28 @@ class Daemon:
     def _audio_loop(self):
         try:
             for chunk in self.source.chunks(self.stop):
+                if self.tab and self.tab.active:
+                    continue  # the tab is the call's audio for now
                 if self.store.status == SILENT_STATUS and chunk.any():
                     self.store.update(status=LISTENING)
-                if self.store.paused:
-                    if self.segmenter._active:
-                        self.segmenter.reset()
-                    continue
-                for segment in self.segmenter.feed(chunk):
-                    self._enqueue(segment)
+                self._hear(chunk)
         except Exception as error:
             log.exception("audio loop stopped")
             self.store.update(status=f"audio error: {error}")
+
+    def _tab_loop(self):
+        for chunk in self.tab.chunks(self.stop):
+            self._hear(chunk)
+
+    def _hear(self, chunk):
+        """The call's audio, from the app tap or a browser tab, into the voice detector."""
+        with self._feed:
+            if self.store.paused:
+                if self.segmenter._active:
+                    self.segmenter.reset()
+                return
+            for segment in self.segmenter.feed(chunk):
+                self._enqueue(segment)
 
     def _mic_loop(self):
         """The user's microphone: nothing of it is transcribed while muted or off the record."""
@@ -387,9 +417,8 @@ class Daemon:
             self.store.update(status=f"model error: {error}")
             return
         self._ready.set()
-        # midas-audio may already be waiting for the chosen app's call.
-        waiting = (self.store.source or {}).get("state") == "waiting"
-        self.store.update(status=WAITING if waiting else LISTENING)
+        # midas-audio may already be waiting for the chosen app, or a tab may be coming in.
+        self.store.update(status=LISTENING if self.tab and self.tab.active else self._capture_status)
         # The last line of each side, so Whisper keeps names and terms consistent.
         context = {OTHERS: "", YOU: ""}
         last_final_id = 0
