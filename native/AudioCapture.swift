@@ -1,11 +1,16 @@
-// midas-audio: captures everything the Mac plays (system output) through a
-// Core Audio process tap and streams it to stdout as mono signed 16-bit PCM.
-// No virtual audio driver and no meeting bot: the tap is private to this process.
+// midas-audio: captures what one app plays (the meeting app), or everything the Mac
+// plays, through a Core Audio process tap and streams it to stdout as mono signed
+// 16-bit PCM. No virtual audio driver and no meeting bot: the tap is private to this
+// process.
 //
-// Usage: midas-audio [--rate 16000]
-// Status lines go to stderr, raw PCM goes to stdout.
+// Usage: midas-audio [--rate 16000] [--app <bundle ID> | --app auto]
+//        midas-audio --list   (the apps using audio, as JSON)
+// With --app the tap runs only while that app uses the microphone, that is, while it is
+// in a call; "auto" follows whichever app does. Status lines go to stderr, raw PCM goes
+// to stdout.
 
 import AVFoundation
+import AppKit
 import AudioToolbox
 import CoreAudio
 import Foundation
@@ -172,12 +177,14 @@ final class SystemAudioCapture {
             commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true)!
     }
 
-    func start() throws {
+    /// Taps these processes (Core Audio process objects), or every process when nil.
+    func start(processes: [AudioObjectID]? = nil) throws {
         let outputID = try defaultOutputDevice()
         let outputUID = try deviceUID(outputID)
 
-        // Global stereo mixdown of every process; nothing is excluded or muted.
-        let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        // A stereo mixdown of the chosen processes, or of every process; nothing is muted.
+        let description = processes.map { CATapDescription(stereoMixdownOfProcesses: $0) }
+            ?? CATapDescription(stereoGlobalTapButExcludeProcesses: [])
         description.uuid = UUID()
         description.name = "Midas"
         description.isPrivate = true
@@ -226,6 +233,8 @@ final class SystemAudioCapture {
             "ready source=\(Int(source.sampleRate))Hz/\(source.channelCount)ch "
                 + "output=\(Int(outputFormat.sampleRate))Hz/1ch/s16le device=\(outputUID)")
     }
+
+    var running: Bool { aggregateID != kAudioObjectUnknown }
 
     func stop() {
         if aggregateID != kAudioObjectUnknown {
@@ -303,8 +312,189 @@ final class SystemAudioCapture {
     }
 }
 
+// MARK: - Apps
+
+/// A process Core Audio knows, and the app it plays for.
+struct AudioProcess {
+    let id: AudioObjectID
+    let pid: pid_t
+    let app: String  // the bundle ID of the app it plays for
+    let name: String
+    let output: Bool
+    let input: Bool
+}
+
+enum AudioApps {
+    private typealias Responsible = @convention(c) (pid_t) -> pid_t
+    private static let responsible = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "responsibility_get_pid_responsible_for_pid")
+        .map { unsafeBitCast($0, to: Responsible.self) }
+
+    static func processes() -> [AudioProcess] {
+        var addr = address(kAudioHardwarePropertyProcessObjectList)
+        var size: UInt32 = 0
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(system, &addr, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &addr, 0, nil, &size, &ids) == noErr else { return [] }
+        let apps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
+        return ids.compactMap { id in
+            let pid: pid_t = value(id, kAudioProcessPropertyPID) ?? -1
+            guard pid > 0, pid != getpid(), let app = owner(of: id, pid: pid, apps: apps) else { return nil }
+            return AudioProcess(
+                id: id, pid: pid, app: app.bundleIdentifier ?? "", name: app.localizedName ?? app.bundleIdentifier ?? "",
+                output: (value(id, kAudioProcessPropertyIsRunningOutput) as UInt32? ?? 0) != 0,
+                input: (value(id, kAudioProcessPropertyIsRunningInput) as UInt32? ?? 0) != 0)
+        }
+    }
+
+    /// The app a process plays for. Helpers belong to the app responsible for them (Chrome's
+    /// helpers to Chrome, WebKit's to Safari); failing that, to the app whose bundle ID
+    /// begins theirs. Midas itself and background agents belong to no app.
+    private static func owner(of id: AudioObjectID, pid: pid_t, apps: [NSRunningApplication]) -> NSRunningApplication? {
+        let boss = responsible?(pid) ?? pid
+        if let app = apps.first(where: { $0.processIdentifier == boss || $0.processIdentifier == pid }) {
+            return app.bundleIdentifier?.hasPrefix("dev.midas") == true ? nil : app
+        }
+        guard let bundle = bundleID(id), !bundle.hasPrefix("dev.midas") else { return nil }
+        return apps.first { app in app.bundleIdentifier.map { bundle == $0 || bundle.hasPrefix($0 + ".") } ?? false }
+    }
+
+    private static func value<T>(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> T? {
+        var addr = address(selector)
+        var size = UInt32(MemoryLayout<T>.size)
+        let result = UnsafeMutablePointer<T>.allocate(capacity: 1)
+        defer { result.deallocate() }
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, result) == noErr else { return nil }
+        return result.pointee
+    }
+
+    private static func bundleID(_ id: AudioObjectID) -> String? {
+        var addr = address(kAudioProcessPropertyBundleID)
+        var bundle: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &bundle) == noErr, let bundle else { return nil }
+        return bundle.takeRetainedValue() as String
+    }
+
+    /// The apps using audio, those in a call (microphone on) first, as JSON for the panel.
+    static func list() -> String {
+        var apps: [String: [String: Any]] = [:]
+        for process in processes() {
+            var app = apps[process.app] ?? ["bundle": process.app, "name": process.name, "output": false, "input": false]
+            if process.output { app["output"] = true }
+            if process.input { app["input"] = true }
+            apps[process.app] = app
+        }
+        let sorted = apps.values.sorted { a, b in
+            let rank = { (app: [String: Any]) in (app["input"] as! Bool ? 0 : 2) + (app["output"] as! Bool ? 0 : 1) }
+            return rank(a) != rank(b) ? rank(a) < rank(b) : (a["name"] as! String) < (b["name"] as! String)
+        }
+        let data = try? JSONSerialization.data(withJSONObject: sorted, options: [.sortedKeys])
+        return String(data: data ?? Data("[]".utf8), encoding: .utf8) ?? "[]"
+    }
+}
+
+/// Taps the meeting app only while it is in a call (its microphone is on), and nothing in
+/// between: a video in another app, or in the same app outside a call, never reaches Midas.
+final class AppFollower {
+    private let target: String?  // a bundle ID, or nil to follow whichever app uses the microphone
+    private let capture: SystemAudioCapture
+    private var app: String?
+    private var tapped: Set<AudioObjectID> = []
+    private var watched: Set<AudioObjectID> = []
+    private var micOffSince: Date?
+    private var reported = ""
+    /// A microphone briefly off (some apps release it on mute) doesn't end the call.
+    private let grace: TimeInterval = 15
+
+    init(target: String?, capture: SystemAudioCapture) {
+        self.target = target
+        self.capture = capture
+    }
+
+    func start() {
+        var list = address(kAudioHardwarePropertyProcessObjectList)
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &list, .main) { [weak self] _, _ in
+            self?.evaluate()
+        }
+        evaluate()
+    }
+
+    /// Rebuilds the tap after the output device changed, if it was running.
+    func restart() {
+        guard capture.running else { return }
+        capture.stop()
+        tapped = []
+        evaluate()
+    }
+
+    func evaluate() {
+        let processes = AudioApps.processes()
+        watch(processes)
+        let inCall = Set(processes.filter(\.input).map(\.app))
+        if let target {
+            app = target
+        } else if app.map({ !inCall.contains($0) }) ?? true, let next = inCall.sorted().first {
+            app = next  // the app in a call; a current one keeps the tap while it stays in its call
+        }
+        let members = processes.filter { $0.app == app }
+        let name = members.first?.name ?? app ?? ""
+        if members.contains(where: \.input) {
+            micOffSince = nil
+            let ids = Set(members.map(\.id))
+            if !capture.running || ids != tapped {
+                capture.stop()
+                do {
+                    try capture.start(processes: Array(ids))
+                    tapped = ids
+                    report("app: \(app ?? "") \(name)")
+                } catch {
+                    log("error: \(error)")
+                }
+            }
+            return
+        }
+        guard capture.running else {
+            report(app == nil || target == nil && inCall.isEmpty
+                ? "waiting: no app is in a call (using the microphone)"
+                : "waiting: \(name.isEmpty ? app ?? "" : name) isn't in a call (its microphone is off)")
+            return
+        }
+        let since = micOffSince ?? Date()
+        micOffSince = since
+        if Date().timeIntervalSince(since) < grace {
+            DispatchQueue.main.asyncAfter(deadline: .now() + grace + 0.1) { [weak self] in self?.evaluate() }
+            return
+        }
+        capture.stop()
+        tapped = []
+        micOffSince = nil
+        if target == nil { app = nil }
+        log("stopped: \(name) left the call (microphone off)")
+        reported = ""
+        evaluate()
+    }
+
+    /// Listens for each process's microphone going on or off.
+    private func watch(_ processes: [AudioProcess]) {
+        for process in processes where !watched.contains(process.id) {
+            watched.insert(process.id)
+            var input = address(kAudioProcessPropertyIsRunningInput)
+            AudioObjectAddPropertyListenerBlock(process.id, &input, .main) { [weak self] _, _ in self?.evaluate() }
+        }
+    }
+
+    private func report(_ line: String) {
+        if line != reported {
+            reported = line
+            log(line)
+        }
+    }
+}
+
 var sampleRate = 16000.0
 var disclaimed = false
+var follow: String?  // --app: a bundle ID, or "auto"
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
 while let argument = arguments.next() {
     switch argument {
@@ -312,8 +502,13 @@ while let argument = arguments.next() {
         if let value = arguments.next(), let rate = Double(value) { sampleRate = rate }
     case "--disclaimed":
         disclaimed = true
+    case "--app":
+        follow = arguments.next()
+    case "--list":
+        print(AudioApps.list())
+        exit(0)
     case "-h", "--help":
-        print("usage: midas-audio [--rate 16000]  (PCM s16le mono on stdout)")
+        print("usage: midas-audio [--rate 16000] [--app <bundle ID>|auto] | --list  (PCM s16le mono on stdout)")
         exit(0)
     default:
         log("unknown argument: \(argument)")
@@ -327,11 +522,16 @@ if !disclaimed {
 AudioPermission.ensure()
 
 let capture = SystemAudioCapture(sampleRate: sampleRate)
-do {
-    try capture.start()
-} catch {
-    log("error: \(error)")
-    exit(1)
+let follower = follow.map { AppFollower(target: $0 == "auto" ? nil : $0, capture: capture) }
+if let follower {
+    follower.start()
+} else {
+    do {
+        try capture.start()
+    } catch {
+        log("error: \(error)")
+        exit(1)
+    }
 }
 
 // Rebuild the tap when the user switches output (speakers <-> headphones).
@@ -339,6 +539,10 @@ var outputAddress = address(kAudioHardwarePropertyDefaultOutputDevice)
 AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &outputAddress, DispatchQueue.main) {
     _, _ in
     log("default output device changed, restarting tap")
+    if let follower {
+        follower.restart()
+        return
+    }
     capture.stop()
     do {
         try capture.start()
@@ -360,4 +564,5 @@ for signalNumber in [SIGINT, SIGTERM] {
     signalSources.append(source)
 }
 
-dispatchMain()
+// A run loop rather than dispatchMain(), so the list of running apps stays current.
+RunLoop.main.run()
