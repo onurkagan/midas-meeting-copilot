@@ -10,7 +10,7 @@ from .config import Config
 from .conversation import EMPTY_REQUEST, marker_note, user_context
 from .ollama import Ollama, OllamaError
 from .prompt import local_system_prompt
-from .store import ANSWER, MARKER, REQUEST, TRANSCRIPT, Store
+from .store import ANSWER, MARKER, REQUEST, TRANSCRIPT, Store, speaker_label
 
 log = logging.getLogger("midas.ollama")
 
@@ -43,7 +43,7 @@ def build_messages(events: list[dict], partial: str, auto: bool, context_tokens:
     lines = []
     for event in events:
         if event["kind"] == TRANSCRIPT:
-            lines.append(f"[{event['time']}] {event['text']}")
+            lines.append(f"[{event['time']}] {speaker_label(event)}: {event['text']}")
         elif event["kind"] == ANSWER:
             said = " ".join(event["text"].split())
             lines.append(f"[{event['time']}] (Midas suggested to the user: {said})")
@@ -70,7 +70,7 @@ def build_messages(events: list[dict], partial: str, auto: bool, context_tokens:
     transcript = "\n".join(lines) or "(nothing has been said yet)"
     return [
         {"role": "system", "content": local_system_prompt(user_context())},
-        {"role": "user", "content": f"Meeting transcript (other participants only):\n{transcript}\n\n{task}"},
+        {"role": "user", "content": f"Meeting transcript:\n{transcript}\n\n{task}"},
     ]
 
 

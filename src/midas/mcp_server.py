@@ -73,8 +73,8 @@ def _initial_context(data: dict) -> str:
 async def wait_for_conversation() -> str:
     """Waits for the user's request for an answer and returns it with what has been said (long-poll).
 
-    The conversation comes from the Mac's system audio, so it belongs to the OTHER meeting
-    participants. When the user presses "Answer" in the panel or types a question, this returns
+    Lines marked Others are the other meeting participants (the meeting app's audio); lines
+    marked You are the user, from their microphone. When the user presses "Answer" in the panel or types a question, this returns
     at once with everything transcribed since the last delivery and the sentence still being
     spoken. Without a request it returns empty after a while; then call it again right away.
     The first call returns the conversation so far, as context only.

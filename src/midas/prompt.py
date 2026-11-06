@@ -19,7 +19,8 @@ SYSTEM_PROMPT = (
 # follow a single, plain instruction far more reliably than tool calls.
 LOCAL_SYSTEM_PROMPT = """\
 You are Midas, a meeting assistant on the user's Mac. You get a live transcript of a meeting. \
-It contains only what the OTHER participants said; the user's own voice is not recorded.
+Lines marked Others are the other participants; lines marked You are the user, from their \
+microphone (absent while it is muted or off).
 
 When the user asks, write a short reply they can say out loud right now:
 - With no specific request: answer the latest question in the transcript, or give the reply \

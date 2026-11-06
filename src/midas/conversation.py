@@ -2,7 +2,7 @@
 and the local Ollama copilot."""
 
 from .config import CONTEXT_FILE, ROOT
-from .store import OFF_THE_RECORD
+from .store import OFF_THE_RECORD, speaker_label
 
 EMPTY_REQUEST = "(pressed Answer: draft a reply to the latest question or topic now)"
 
@@ -19,13 +19,13 @@ def format_events(events: list[dict], partial: str = "", live: bool = True) -> s
     lines = []
     for event in events:
         if event["kind"] == "transcript":
-            lines.append(f"[{event['time']}] {event['text']}")
+            lines.append(f"[{event['time']}] {speaker_label(event)}: {event['text']}")
         elif event["kind"] == "marker":
             lines.append(marker_note(event))
         elif not live:
             lines.append(f"[{event['time']}] (earlier request, already answered: {event['text'] or 'Answer'})")
     if partial:
-        lines.append(f"[being said right now, unfinished] {partial}")
+        lines.append(f"[being said right now, unfinished] Others: {partial}")
     if live:
         for event in events:
             if event["kind"] == "request":

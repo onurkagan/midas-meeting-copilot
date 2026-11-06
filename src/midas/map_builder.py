@@ -20,15 +20,16 @@ from .config import CLAUDE_MODELS, Config
 from .conversation import marker_note, user_context
 from .meeting_map import MeetingMap
 from .ollama import Ollama, OllamaError
-from .store import ANSWER, MARKER, TRANSCRIPT, Store
+from .store import ANSWER, MARKER, TRANSCRIPT, Store, speaker_label
 
 log = logging.getLogger("midas.map")
 
 SYSTEM = """\
 You keep a map of a meeting for the user: its topics and, under each topic, the questions \
 put to the user, the answers Midas suggested to them, decisions, action items, risks and \
-open questions. The transcript holds only what the OTHER participants said; the user's own \
-voice is not recorded. Every line starts with its id in brackets.
+open questions. Lines marked Others are the other participants (the meeting app's audio); \
+lines marked You are the user, from their microphone, when it is on and not muted. Every line \
+starts with its id in brackets.
 
 You get the map so far and the lines said since your last look. Return only what is NEW:
 - topics: new topics, 2 to 4 words, each with a key you choose and the ids of the lines \
@@ -41,7 +42,8 @@ own topics. Types:
   answer: a line marked "Midas suggested" that answers a question; set "answers" to that \
 question's id or key. Skip summaries, explanations and other suggestions.
   decision: something the participants agreed on.
-  action: a task someone took on. owner: the name as said in the meeting, else empty. \
+  action: a task someone took on. owner: the name as said in the meeting ("You" for a task \
+the user took on in a You line), else empty. \
 due: as said ("Thursday"), else empty.
   risk: a concern or something that could go wrong.
   open_question: a question the meeting left open.
@@ -128,7 +130,7 @@ def line(event: dict) -> str:
         return f"[{event['id']}] {event['time']} (Midas suggested to the user: {' '.join(event['text'].split())})"
     if event["kind"] == MARKER:
         return f"[{event['id']}] {marker_note(event)}"
-    return f"[{event['id']}] {event['time']} {event['text']}"
+    return f"[{event['id']}] {event['time']} {speaker_label(event)}: {event['text']}"
 
 
 def build_prompt(outline: str, earlier: list[dict], fresh: list[dict], context: str) -> str:
