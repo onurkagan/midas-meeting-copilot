@@ -365,7 +365,8 @@ class Daemon:
                     self._new_meeting_if_due()
                     self.store.add(TRANSCRIPT, text)
                     context = text
-                    log.info("» %s", text)
+                    # What was said stays out of the log unless you debug (MIDAS_DEBUG=1).
+                    log.debug("» %s", text)
                 else:
                     self.store.update(partial="")
             elif text:

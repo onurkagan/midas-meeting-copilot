@@ -22,7 +22,9 @@ def main():
         return
 
     logging.basicConfig(
-        level=logging.INFO,
+        # MIDAS_DEBUG=1 also logs what was said, for working on Midas; the log is otherwise
+        # free of meeting content.
+        level=logging.DEBUG if os.environ.get("MIDAS_DEBUG") else logging.INFO,
         format="%(asctime)s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
         stream=sys.stderr,
