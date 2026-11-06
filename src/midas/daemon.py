@@ -113,7 +113,7 @@ class Daemon:
             server = api.serve(
                 self.store, self.config.host, self.config.port,
                 on_quit=self.stop.set, on_copilot=self.set_copilot, on_ollama=self.ollama_models,
-                on_listen=self.listen, on_apps=self.audio_apps,
+                on_listen=self.listen, on_apps=self.audio_apps, on_mute=self.set_mic_muted,
                 auto_answer=self.config.auto_answer, map_builder=self.map_builder,
             )  # fmt: skip
         except OSError:
@@ -334,10 +334,10 @@ class Daemon:
             self.store.update(status=f"audio error: {error}")
 
     def _mic_loop(self):
-        """The user's microphone: nothing of it is transcribed while off the record."""
+        """The user's microphone: nothing of it is transcribed while muted or off the record."""
         try:
             for chunk in self.mic.chunks(self.stop):
-                if self.store.paused:
+                if self.store.paused or self.store.mic_muted:
                     if self.mic_segmenter._active:
                         self.mic_segmenter.reset()
                     continue
@@ -346,6 +346,12 @@ class Daemon:
                         self._enqueue(segment)
         except Exception:
             log.exception("microphone loop stopped")
+
+    def set_mic_muted(self, muted: bool) -> dict:
+        """Midas mute (⌃⌥V): what the microphone hears is thrown away until unmuted."""
+        self.store.update(mic_muted=bool(muted))
+        log.info("microphone %s", "muted" if muted else "unmuted")
+        return {"muted": self.store.mic_muted}
 
     def _enqueue(self, segment: Segment):
         with self._jobs:
@@ -388,7 +394,7 @@ class Daemon:
                 log.exception("transcription error")
                 continue
             if segment.speaker == YOU:
-                if text and not self.store.paused:
+                if text and not (self.store.mic_muted or self.store.paused):
                     self._new_meeting_if_due()
                     self.store.add(TRANSCRIPT, text, speaker=YOU)
                     context[YOU] = text

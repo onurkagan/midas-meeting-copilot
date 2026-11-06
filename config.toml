@@ -69,7 +69,7 @@
 # listen_to = "auto"
 
 # Transcribe what I say too, from the microphone, while the meeting app is in a call. My lines
-# are marked "You".
+# are marked "You"; ⌃⌥V mutes Midas's microphone at any time.
 # microphone = true
 
 # Speech after this many quiet minutes starts a new meeting: its own log and map, and the

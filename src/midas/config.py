@@ -74,7 +74,7 @@ class Config:
     # app, only that app is heard, and only during its calls. The panel's choice wins.
     listen_to: str = "auto"
     # Transcribe what you say too, from the microphone, while the meeting app is in a call.
-    # Your lines are marked "You".
+    # Your lines are marked "You"; ⌃⌥V mutes Midas's microphone at any time.
     microphone: bool = True
     # Speech after this many quiet minutes starts a new meeting: its own log and map, and the
     # copilot starts over without the last one; 0 keeps one meeting per run.

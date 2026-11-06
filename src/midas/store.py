@@ -62,8 +62,9 @@ class Store:
         self.map_info: dict = {}
         # What Midas listens to and whether it is hearing it now (audio.SystemAudio).
         self.source: dict = {}
-        # The user's microphone: whether it is on (during a call).
+        # The user's microphone: whether it is on (during a call), and muted with ⌃⌥V.
         self.mic: dict = {}
+        self.mic_muted = False
         # Seconds from a request to its answer, per copilot, for /api/health.
         self._latencies: deque[tuple[str, float]] = deque(maxlen=500)
         # The log is written once the meeting has something in it, so a Midas that ran
@@ -245,7 +246,7 @@ class Store:
                 "privacy": self.privacy,
                 "map": self.map_info or None,
                 "source": self.source or None,
-                "mic": self.mic or None,
+                "mic": {**self.mic, "muted": self.mic_muted} if self.mic else None,
                 "session": self.started,
                 "count": len(self._events),
                 "events": self._events[max(since, self.meeting_start) :],
