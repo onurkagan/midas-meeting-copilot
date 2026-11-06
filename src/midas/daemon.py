@@ -156,6 +156,8 @@ class Daemon:
             "--tools", "",
             "--mcp-config", json.dumps(mcp_config), "--strict-mcp-config",
             "--allowedTools", "mcp__midas",
+            # The meeting stays in sessions/ only, not in Claude Code's own history too.
+            "--no-session-persistence",
         ]  # fmt: skip
         environment = {
             **os.environ,
