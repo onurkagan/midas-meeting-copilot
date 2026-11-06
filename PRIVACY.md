@@ -2,6 +2,10 @@
 
 Midas listens to meetings, so this page says exactly what it keeps, where text goes, and what it never does. Midas has no servers, accounts, analytics or telemetry: everything below happens on your Mac, except the answers you ask Claude for.
 
+## What Midas hears
+
+By default, only the app you're in a call with, and only while the call lasts: Midas taps that app's audio while its microphone is on, and stops shortly after the call ends. Other apps, a video, music or a notification sound, aren't heard. In a browser Midas hears every tab, and the panel says so while it does. You can pick one app, or everything the Mac plays, under **Listen to** in the panel's settings (⚙︎), or with `listen_to` in `config.toml`.
+
 ## What Midas keeps on your Mac
 
 | What | Where | How long |
@@ -22,12 +26,14 @@ Midas.app runs Claude Code without its session history, so the meeting isn't als
 
 **With the Claude copilot**, Claude Code reads the meeting through Midas's local MCP bridge and sends it to Anthropic, under your Claude account and Anthropic's terms and privacy settings (including whether your conversations may be used to improve their models, which you choose in your Claude account). Claude receives:
 
-- what was said since the last answer, when you press **Answer** or **Summary** or type a request;
+- what was said since the last answer, but no more than the last 10 minutes (`recent_minutes`), when you press **Answer** or **Summary** or type a request;
 - continuously, as people speak, if you turn on `auto_answer`;
-- up to the last 30 lines and any unanswered request when its session starts or restarts, for example after you change the model;
+- up to the last 30 lines from those 10 minutes, and any unanswered request, when its session starts or restarts, for example after you change the model;
 - for the meeting map, the lines since its last update, after each answer you ask for and when you press **Update** or **Save map** (continuously only with `auto_answer`);
 - your `context.md`;
 - past meetings' maps and logs, only when Claude looks them up for a request of yours (`search_meetings`, `get_meeting`).
+
+After 15 quiet minutes (`meeting_gap_minutes`), the next speech starts a new meeting: its own log and map, and a new Claude session that knows nothing of the last one.
 
 The line under the **Answer** button always says which copilot answers.
 
