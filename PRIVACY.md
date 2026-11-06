@@ -14,7 +14,7 @@ Your microphone too, during the same calls: what you say is transcribed and mark
 |---|---|---|
 | **Audio** | Only in memory, while Whisper transcribes it | Never written to disk, never sent anywhere |
 | **Transcript, your requests and the answers** | `sessions/YYYY-MM-DD_HH-MM.md`, one Markdown file per run | Until you delete it, or for `keep_sessions_days` days |
-| **The meeting map** (topics, decisions, action items, with the lines they came from) | Beside the log: `.map.json`, `.map.md`, and after **Save map** `.canvas` and `.png` | Deleted with the log; open items come over to your next map for `carry_over_days` days |
+| **The meeting map** (topics, decisions, action items, with the lines they came from) | Beside the log: `.map.json`, `.map.md`, after **Save map** `.canvas` and `.png`, and what you export (`.map.pdf`, `.map.html`) | Deleted with the log; open items come over to your next map for `carry_over_days` days |
 | **Transcript lines in the log** | Only when you run Midas with `MIDAS_DEBUG=1`, in `logs/daemon.log` | Replaced each time Midas starts |
 | **Your notes for the copilot** | `context.md` | Until you change it |
 | **Panel settings** | `copilot.json` | Until you change them |
