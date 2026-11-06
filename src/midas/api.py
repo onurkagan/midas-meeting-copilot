@@ -155,6 +155,12 @@ def serve(
                 map_builder.update()
             elif action == "save":
                 map_builder.export()
+            elif action == "document":
+                # The map to share: Markdown or HTML (the panel prints the HTML to PDF).
+                kind = body.get("format")
+                if kind not in ("md", "html"):
+                    return self._send({"error": "format must be md or html"}, 400)
+                return self._send({"path": str(map_builder.document(kind))})
             elif action in ("said", "done"):
                 if not map_builder.set(node, **{action: bool(body.get("value", True))}):
                     return self._send({"error": f"no {action} mark for {node!r}"}, 400)
@@ -162,7 +168,7 @@ def serve(
                 if not map_builder.remove(node):
                     return self._send({"error": f"no item {node!r}"}, 400)
             else:
-                return self._send({"error": "action must be update, save, said, done or remove"}, 400)
+                return self._send({"error": "action must be update, save, document, said, done or remove"}, 400)
             self._send(map_builder.map.summary())
 
     server = ThreadingHTTPServer((host, port), Handler)

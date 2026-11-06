@@ -14,6 +14,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from . import map_document
+from .map_document import COLORS
+
 ITEM_TYPES = ("question", "answer", "decision", "action", "open")
 # What a model may call an item, and the kind of node it becomes.
 KINDS = {
@@ -36,14 +39,6 @@ SPOKEN = ("transcript",)
 # and sets the columns (MapMetrics in MapViews.swift).
 ROW, GAP, TOP = 48, 36, 50
 
-COLORS = {
-    "topic": "#1F6FB8",
-    "question": "#2B86C9",
-    "answer": "#1E9688",
-    "decision": "#1F5FA8",
-    "action": "#5A5FC8",
-    "open": "#C95B43",
-}
 
 
 def clean(value, limit: int) -> str:
@@ -157,7 +152,10 @@ class MeetingMap:
                         continue
                     if event and event["kind"] in kinds and event["id"] not in seen:
                         seen.add(event["id"])
-                        found.append({"id": event["id"], "time": event["time"], "text": event["text"]})
+                        source = {"id": event["id"], "time": event["time"], "text": event["text"]}
+                        if event.get("speaker"):
+                            source["speaker"] = event["speaker"]  # who said it: others or you
+                        found.append(source)
                 return sorted(found, key=lambda s: s["id"])
 
             if not self.title and (title := clean(ops.get("title"), 40)):
@@ -346,6 +344,8 @@ class MeetingMap:
                 "start": self.started.strftime("%H:%M"),
                 "updated": datetime.fromtimestamp(self.updated_at).strftime("%H:%M") if self.updated_at else "",
                 "height": height,
+                # Where the panel draws the picture, which the HTML and PDF include.
+                "picture": str(self.path(".png")),
                 "nodes": nodes,
                 "links": list(self.links),
                 "saved": dict(self.saved),
@@ -454,6 +454,7 @@ class MeetingMap:
                         said = "You said" if a.get("said") else "Midas suggested (not marked as said)"
                         out.append(f"  - {said}: {one_line(a['sources'][0]['text'])}")
                 out.append("")
+            out += map_document.markdown_details(self)
             out.append(f"Every item comes from the meeting log, {self.session_file.name}.")
             return "\n".join(out) + "\n"
 
@@ -509,6 +510,17 @@ class MeetingMap:
                 edges.append({"id": f"l-{link['from']}-{link['to']}", "fromNode": link["from"], "toNode": link["to"],
                               "color": COLORS["open"], "label": "same issue"})  # fmt: skip
         return {"nodes": nodes, "edges": edges}
+
+    def document(self, kind: str) -> Path:
+        """The map to share, as kind "md" or "html", beside the meeting log. (The panel
+        prints the HTML to PDF.)"""
+        with self._lock:
+            if kind == "html":
+                path = self.path(".map.html")
+                path.write_text(map_document.html_document(self), encoding="utf-8")
+                return path
+            self.save()
+            return self.markdown_path
 
     def export(self) -> list[Path]:
         """Save map: the JSON and Markdown, plus the Canvas; the panel adds the picture."""

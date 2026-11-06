@@ -234,6 +234,13 @@ class MapBuilder:
         self._save.set()
         self._wake.set()
 
+    def document(self, kind: str):
+        """The map to share, as "md" or "html", written beside the meeting log."""
+        with self._lock:
+            path = self.map.document(kind)
+        log.info("map exported: %s", path.name)
+        return path
+
     def set(self, node_id: str, **flags) -> bool:
         changed = self.map.set(node_id, **flags)
         if changed:
