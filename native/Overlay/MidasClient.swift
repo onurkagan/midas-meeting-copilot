@@ -228,6 +228,46 @@ final class MidasClient: ObservableObject {
         post("map", ["action": "save"])
     }
 
+    /// The export being written, and the last file written, shown in Finder.
+    @Published private(set) var exporting: MapExportFormat?
+    @Published private(set) var exported: URL?
+
+    /// Saves the map to share as PDF, Markdown or HTML, beside the meeting log, and shows it
+    /// in Finder. The picture is drawn first, so the HTML and PDF have the map as it is now.
+    func exportMap(_ format: MapExportFormat) {
+        guard let map = meetingMap, exporting == nil else { return }
+        exporting = format
+        exported = nil
+        if format != .md, let picture = map.picture {
+            MainActor.assumeIsolated { _ = MapPicture.write(map, to: picture) }
+        }
+        var request = URLRequest(url: base.appendingPathComponent("map"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["action": "document", "format": format == .md ? "md" : "html"])
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            let reply = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            let path = reply?["path"] as? String
+            DispatchQueue.main.async {
+                guard let path else { return self.finishExport(nil) }
+                let file = URL(fileURLWithPath: path)
+                guard format == .pdf else { return self.finishExport(file) }
+                // name.map.html → name.map.pdf
+                let pdf = file.deletingPathExtension().appendingPathExtension("pdf")
+                MainActor.assumeIsolated {
+                    PDFPrinter.print(file, to: pdf) { ok in self.finishExport(ok ? pdf : nil) }
+                }
+            }
+        }.resume()
+    }
+
+    private func finishExport(_ file: URL?) {
+        exporting = nil
+        exported = file
+        if let file { NSWorkspace.shared.activateFileViewerSelecting([file]) }
+    }
+
     /// The user's own marks: an answer they said, an action item that's done.
     func mark(_ node: MapNode, _ flag: String, _ value: Bool) {
         post("map", ["action": flag, "id": node.id, "value": value])

@@ -97,6 +97,7 @@ struct MeetingMapData: Decodable, Equatable {
     let start: String
     let updated: String
     let height: Double
+    var picture: String? = nil  // where the panel draws the picture the HTML and PDF include
     let nodes: [MapNode]
     let links: [MapLink]
     var saved: MapSaved? = nil

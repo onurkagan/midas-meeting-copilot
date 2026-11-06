@@ -129,6 +129,8 @@ struct MapWindowView: View {
                 .foregroundStyle(tide.foamText)
                 .help("Show in Finder")
             }
+            MapExportButtons(client: client, compact: true)
+            Rectangle().fill(tide.divider).frame(width: 1, height: 20)
             Button(action: client.updateMap) {
                 HStack(spacing: 5) { Icon(.refresh, size: 13); Text("Update") }.font(Tide.font(12, .semibold))
             }

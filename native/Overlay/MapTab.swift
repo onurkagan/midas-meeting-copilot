@@ -46,6 +46,8 @@ struct MapTabView: View {
     @ObservedObject var client: MidasClient
     @Environment(\.tide) private var tide
     @State private var expanded: String?
+    /// The export row, opened with Export.
+    @State private var exporting = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,6 +66,22 @@ struct MapTabView: View {
                 .padding(.vertical, 10)
             }
             Rectangle().fill(tide.divider).frame(height: 1)
+            if exporting {
+                VStack(alignment: .leading, spacing: 5) {
+                    MapExportButtons(client: client)
+                    if let file = client.exported {
+                        Button { NSWorkspace.shared.activateFileViewerSelecting([file]) } label: {
+                            HStack(spacing: 4) { Icon(.check, size: 12, weight: 2.2); Text("Exported \(file.lastPathComponent)").lineLimit(1) }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(tide.foamText)
+                        .font(Tide.font(11, .semibold))
+                        .help("Show in Finder")
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 9)
+            }
             actions.padding(.horizontal, 12).padding(.vertical, 9)
         }
         .onAppear(perform: client.markMapSeen)
@@ -129,6 +147,14 @@ struct MapTabView: View {
             .buttonStyle(SecondaryButtonStyle())
             .disabled(!hasItems)
             .help("Open the map as a graph in its own window, also hidden from screen sharing")
+            Button {
+                withAnimation(.easeOut(duration: 0.15)) { exporting.toggle() }
+            } label: {
+                Text("Export").font(Tide.font(12, .semibold))
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .disabled(!hasItems)
+            .help("Save the map to share: PDF, Markdown or HTML, with every item's explanation")
             Spacer(minLength: 0)
             if let saved = client.savedMapFile, !client.mapSaving {
                 Button { NSWorkspace.shared.activateFileViewerSelecting([saved]) } label: {

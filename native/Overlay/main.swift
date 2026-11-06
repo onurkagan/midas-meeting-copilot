@@ -14,6 +14,14 @@ while let argument = arguments.next() {
     case "--port": port = arguments.next().flatMap(Int.init) ?? port
     case "--parent-pid": parentPID = arguments.next().flatMap { pid_t($0) }
     case "--root": root = arguments.next()
+    case "--print-pdf":
+        // midas-overlay --print-pdf map.html map.pdf: the map's HTML on A4 pages, as Export › PDF does.
+        guard let html = arguments.next(), let pdf = arguments.next() else { exit(64) }
+        _ = NSApplication.shared
+        MainActor.assumeIsolated {
+            PDFPrinter.print(URL(fileURLWithPath: html), to: URL(fileURLWithPath: pdf)) { ok in exit(ok ? 0 : 1) }
+        }
+        NSApplication.shared.run()
     case "--render-preview":
         // Design check without a meeting: writes PNGs of the panel with sample data.
         guard let folder = arguments.next() else { exit(64) }
