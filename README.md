@@ -32,11 +32,12 @@
   </picture>
 </p>
 
-**Midas** is a free, open-source AI meeting assistant for macOS. It listens to whatever your Mac plays (Zoom, Google Meet, Microsoft Teams, Webex, Slack huddles…) and transcribes it in real time with Whisper, running locally on Apple Silicon. When someone asks you something, press **Answer**: Claude Code receives the conversation over MCP (the Model Context Protocol) and drafts a reply you can say out loud. Prefer to keep everything on your Mac? Pick a local model in [Ollama](https://ollama.com) instead. The reply appears in a small floating panel that stays out of screen shares, screenshots and recordings.
+**Midas** is a free, open-source AI meeting assistant for macOS. It listens to the app you're in a call with (Zoom, Google Meet, Microsoft Teams, Webex, Slack huddles…) and transcribes it in real time with Whisper, running locally on Apple Silicon. When someone asks you something, press **Answer**: Claude Code receives the conversation over MCP (the Model Context Protocol) and drafts a reply you can say out loud. Prefer to keep everything on your Mac? Pick a local model in [Ollama](https://ollama.com) instead. The reply appears in a small floating panel that stays out of screen shares, screenshots and recordings.
 
 ## Features
 
-- **Works with any meeting app.** Midas captures system audio, so it works with Zoom, Google Meet, Microsoft Teams, Webex, Slack, FaceTime, or a video in your browser. Nothing to install in the meeting app.
+- **Works with any meeting app.** Midas listens to the app you're in a call with, Zoom, Google Meet in your browser, Microsoft Teams, Webex, Slack or FaceTime, and only while the call lasts. Nothing to install in the meeting app.
+- **Only the meeting.** A video in another app or a notification sound doesn't end up in the transcript. Claude reads only the last 10 minutes when you ask, and after a long quiet the next speech starts a new meeting, with its own log and map and a fresh Claude session.
 - **No meeting bot.** Nothing joins the call and there's no virtual audio driver: audio comes straight from macOS's Core Audio process tap API. At the start of each meeting Midas reminds you to tell the others, with a message ready to paste into the chat.
 - **Private, on-device transcription.** Whisper large-v3-turbo runs locally with MLX. Audio never leaves your Mac; only text goes to Claude, and only when you ask.
 - **Or fully local with Ollama.** Choose any model you've pulled into Ollama in the panel's settings. Answers stream in as the model writes them, and the meeting never leaves your Mac. No Claude account needed.
@@ -54,7 +55,7 @@
 ## How it works
 
 ```
-System audio ──► midas-audio (Swift, Core Audio tap, 16 kHz PCM)
+Call's audio ──► midas-audio (Swift, Core Audio process tap, 16 kHz PCM)
                    │
                    ▼
               Midas daemon (Python)
@@ -66,7 +67,7 @@ System audio ──► midas-audio (Swift, Core Audio tap, 16 kHz PCM)
    (hidden panel)       wait_for_conversation · show_answer · get_transcript
 ```
 
-Claude Code runs the `/midas` command as a loop. `wait_for_conversation` blocks until you press **Answer** in the panel, then returns everything transcribed since the last answer, plus the sentence still being spoken. Claude drafts a reply to the latest question and posts it to the panel with `show_answer`. To let Claude also suggest replies on its own, set `auto_answer = true` in `config.toml`.
+Claude Code runs the `/midas` command as a loop. `wait_for_conversation` blocks until you press **Answer** in the panel, then returns everything transcribed since the last answer (from the last 10 minutes at most), plus the sentence still being spoken. Claude drafts a reply to the latest question and posts it to the panel with `show_answer`. To let Claude also suggest replies on its own, set `auto_answer = true` in `config.toml`.
 
 With **Ollama** chosen in the panel, Claude Code isn't involved: the daemon sends the transcript to the local model itself and streams the reply into the panel.
 
@@ -101,6 +102,7 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 - `context.md`, `config.toml` and the meeting logs (`sessions/`) live there too. **Open folder** in the panel's settings (⚙︎) opens that folder.
 - After changing code in this folder, run `./midas install` again; your settings and logs are kept.
 - Click Midas's bubble in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
+- **Listen to** in the panel's settings (⚙︎) picks what Midas hears. **The app in a call**, the default, follows whichever app has its microphone on; you can also pick one app (the one in a call is marked), or **Everything the Mac plays** for a recording or a webinar. The status at the top names the app being heard, or says Midas is waiting for a call.
 - The panel's settings (⚙︎) pick Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
 - **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
 
@@ -138,7 +140,7 @@ The whole meeting flows in one timeline: what was said, where you asked for an a
 ### Personalizing
 
 - `context.md`: who you are, your role, your projects, the meeting agenda. Claude reads it at the start of every session.
-- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`), and privacy: the start-of-meeting reminder and its message (`consent_reminder`, `notice_message`), local models only (`local_only`) and how long to keep transcripts (`keep_sessions_days`), and the meeting map (`map_live`, `map_interval_s`, `map_model`, `carry_over_days`).
+- `config.toml`: languages (`languages = ["tr", "en"]`), Whisper model, names and terms to spell correctly (`vocabulary`), silence threshold, automatic replies (`auto_answer`), and privacy: the start-of-meeting reminder and its message (`consent_reminder`, `notice_message`), local models only (`local_only`) and how long to keep transcripts (`keep_sessions_days`), and the meeting map (`map_live`, `map_interval_s`, `map_model`, `carry_over_days`). What Midas listens to (`listen_to`), how far back a copilot may read (`recent_minutes`) and the quiet that starts a new meeting (`meeting_gap_minutes`) are there too.
 - `.claude/commands/midas.md`: Claude's behavior and reply style (when to answer, length, tone).
 
 ## Using it from a terminal
@@ -207,6 +209,9 @@ Yes. Install [Ollama](https://ollama.com), pull a model, and choose **Ollama · 
 
 **Which languages does it understand?**
 Turkish and English by default. Whisper supports about 100 languages; set them with `languages` in `config.toml`.
+
+**Will it pick up a video or music playing on my Mac?**
+Not by default. Midas hears only the app that's in a call (its microphone is on), and only during the call. In a browser it hears every tab, and the panel says so while it does. To transcribe a recording or a webinar, choose **Everything the Mac plays** under **Listen to** in the panel's settings (⚙︎).
 
 **Does it transcribe my own voice?**
 No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart.
