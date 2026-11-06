@@ -4,7 +4,7 @@ Midas listens to meetings, so this page says exactly what it keeps, where text g
 
 ## What Midas hears
 
-By default, only the app you're in a call with, and only while the call lasts: Midas taps that app's audio while its microphone is on, and stops shortly after the call ends. Other apps, a video, music or a notification sound, aren't heard. In a browser Midas hears every tab, and the panel says so while it does. You can pick one app, or everything the Mac plays, under **Listen to** in the panel's settings (⚙︎), or with `listen_to` in `config.toml`.
+By default, only the app you're in a call with, and only while the call lasts: Midas taps that app's audio while its microphone is on, and stops shortly after the call ends. Other apps, a video, music or a notification sound, aren't heard. In a browser Midas hears every tab, and the panel says so while it does. You can pick one app, which is then heard whenever it plays, or everything the Mac plays, under **Listen to** in the panel's settings (⚙︎), or with `listen_to` in `config.toml`.
 
 Your microphone too, during the same calls: what you say is transcribed and marked **You**, with macOS's echo cancellation keeping the other side out of it. The microphone button or ⌃⌥V mutes it; what it hears while muted isn't transcribed. `microphone = false` in `config.toml` turns it off.
 

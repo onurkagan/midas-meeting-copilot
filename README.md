@@ -103,7 +103,7 @@ Open Midas from Spotlight (⌘Space → Midas): listening starts, the hidden pan
 - `context.md`, `config.toml` and the meeting logs (`sessions/`) live there too. **Open folder** in the panel's settings (⚙︎) opens that folder.
 - After changing code in this folder, run `./midas install` again; your settings and logs are kept.
 - Click Midas's bubble in the menu bar to show or hide the panel. Reopening Midas.app also brings a hidden panel back.
-- **Listen to** in the panel's settings (⚙︎) picks what Midas hears. **The app in a call**, the default, follows whichever app has its microphone on; you can also pick one app (the one in a call is marked), or **Everything the Mac plays** for a recording or a webinar. The status at the top names the app being heard, or says Midas is waiting for a call.
+- **Listen to** in the panel's settings (⚙︎) picks what Midas hears. **The app in a call**, the default, follows whichever app has its microphone on; you can also pick one app, which is then heard whenever it plays (the one in a call is marked), or **Everything the Mac plays**. The status at the top names the app being heard, or says Midas is waiting for a call.
 - The panel's settings (⚙︎) pick Claude's model (Opus, Sonnet, Haiku) and effort (Low, Medium, High, Max). The default is Opus · medium. The choice is saved, and Claude restarts with it within ~10 s.
 - **Usage limits:** The app's Claude runs with only the Midas tools and a short system prompt (~4k tokens of context per call). It makes no calls until you press the button, and each **Answer** is a single call. By our measurements, a 30-minute meeting on Opus uses roughly 0.1% of a Max plan's 5-hour limit.
 
@@ -213,7 +213,7 @@ Yes. Install [Ollama](https://ollama.com), pull a model, and choose **Ollama · 
 Turkish and English by default. Whisper supports about 100 languages; set them with `languages` in `config.toml`.
 
 **Will it pick up a video or music playing on my Mac?**
-Not by default. Midas hears only the app that's in a call (its microphone is on), and only during the call. In a browser it hears every tab, and the panel says so while it does. To transcribe a recording or a webinar, choose **Everything the Mac plays** under **Listen to** in the panel's settings (⚙︎).
+Not by default. Midas hears only the app that's in a call (its microphone is on), and only during the call. In a browser it hears every tab, and the panel says so while it does. To transcribe a recording or a webinar, pick the app playing it, or **Everything the Mac plays**, under **Listen to** in the panel's settings (⚙︎).
 
 **Does it transcribe my own voice?**
 Yes, during calls. While the meeting app is in a call, Midas also listens to your microphone and marks your lines **You**; macOS's echo cancellation keeps the other side out of them. Mute it any time with ⌃⌥V or the microphone button, or turn it off with `microphone = false` in `config.toml`. The people on the other side aren't told apart: they're all **Others**.

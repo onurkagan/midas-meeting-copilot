@@ -468,7 +468,9 @@ private struct ListenTo: View {
                 ? "A test file is playing."
                 : selected == "all"
                 ? "Every app is heard: other calls, videos and notification sounds too."
-                : "Only this app is heard, and only while it's in a call (its microphone is on).")
+                : selected == "auto"
+                ? "Only the app in a call is heard, and only during the call (its microphone is on)."
+                : "Everything this app plays is heard. Your microphone only while it's in a call.")
                 .font(Tide.font(10.5))
                 .foregroundStyle(tide.muted)
                 .fixedSize(horizontal: false, vertical: true)
