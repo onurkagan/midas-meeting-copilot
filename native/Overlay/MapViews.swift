@@ -366,7 +366,7 @@ struct MapDetail: View {
             if node.type == "answer" {
                 Text(node.said == true
                     ? "Marked as said: it goes into the saved map as your answer."
-                    : "Draft. Midas doesn't hear your voice, so it can't tell whether you said this.")
+                    : "Draft until you mark it as said.")
                     .font(Tide.font(11.5)).foregroundStyle(tide.muted).fixedSize(horizontal: false, vertical: true)
                 MarkButton(on: node.said == true, onLabel: "You said this", offLabel: "I said this") { client.mark(node, "said", $0) }
             }

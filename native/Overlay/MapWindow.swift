@@ -160,7 +160,7 @@ struct MapWindowView: View {
                     .font(Tide.font(12.5))
                 }
             }
-            Text("Click an item to see the lines it came from. Dashed answers are drafts until you mark them as said; Midas doesn't hear your own voice.")
+            Text("Click an item to see the lines it came from. Dashed answers are drafts until you mark them as said.")
                 .font(Tide.font(11.5)).foregroundStyle(tide.muted).fixedSize(horizontal: false, vertical: true)
         }
     }
