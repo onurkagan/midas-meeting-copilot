@@ -42,7 +42,9 @@ EOF
 rsync -a --delete "$ROOT/extension/" "$RUNTIME/extension/"
 CHROME="$HOME/Library/Application Support/Google/Chrome"
 if [[ -d "$CHROME" ]]; then
-  EXTENSION_ID="$("$ROOT/.venv/bin/python" "$ROOT/scripts/extension_id.py" "$ROOT/extension/manifest.json")"
+  # The unpacked extension's ID, and the Chrome Web Store's once extension/store-id.txt has it.
+  ORIGINS="$("$ROOT/.venv/bin/python" "$ROOT/scripts/extension_id.py" "$ROOT/extension/manifest.json" \
+    | sed 's|.*|"chrome-extension://&/"|' | paste -sd, - | sed 's/,/, /g')"
   mkdir -p "$CHROME/NativeMessagingHosts"
   cat >"$CHROME/NativeMessagingHosts/dev.midas.tab.json" <<EOF
 {
@@ -50,7 +52,7 @@ if [[ -d "$CHROME" ]]; then
   "description": "Midas: a call tab's audio from Midas for Chrome",
   "path": "$RUNTIME/midas",
   "type": "stdio",
-  "allowed_origins": ["chrome-extension://$EXTENSION_ID/"]
+  "allowed_origins": [$ORIGINS]
 }
 EOF
 fi
