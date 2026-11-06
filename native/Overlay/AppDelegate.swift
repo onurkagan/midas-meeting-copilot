@@ -201,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             client.ask("")
             panel.orderFrontRegardless()
         case 3: client.togglePause()
+        case 4: client.toggleMute()
         default: break
         }
     }

@@ -4,7 +4,7 @@ import SwiftUI
 /// of SF Symbols, whose filled and semibold shapes read heavy on the glass).
 enum TideIcon {
     case pause, play, minimize, settings, sparkle, lock, send, waves, copy, check, close
-    case refresh, arrowDown, folder, power, chat, radio, map
+    case refresh, arrowDown, folder, power, chat, radio, map, mic, micOff
 
     fileprivate func draw(_ p: inout Path) {
         switch self {
@@ -96,6 +96,12 @@ enum TideIcon {
             p.move(to: pt(9.6, 10.2)); p.addLine(to: pt(6.6, 6.9))
             p.move(to: pt(14.8, 11.0)); p.addLine(to: pt(17.1, 8.0))
             p.move(to: pt(10.3, 14.6)); p.addLine(to: pt(8.4, 17.3))
+        case .mic, .micOff:
+            p.addRoundedRect(in: CGRect(x: 9, y: 3.5, width: 6, height: 10.5), cornerSize: CGSize(width: 3, height: 3))
+            p.move(to: pt(6, 11)); p.addQuadCurve(to: pt(18, 11), control: pt(12, 21.5))
+            p.move(to: pt(12, 16.6)); p.addLine(to: pt(12, 20.5))
+            p.move(to: pt(9, 20.5)); p.addLine(to: pt(15, 20.5))
+            if self == .micOff { p.move(to: pt(5, 4)); p.addLine(to: pt(19, 20)) }
         }
     }
 

@@ -73,6 +73,15 @@ struct OverlayView: View {
                     ? "Back on the record: transcribe again (⌃⌥P)"
                     : "Go off the record: stop transcribing until you resume (⌃⌥P)",
                 action: client.togglePause)
+            if let mic = client.snapshot?.mic {
+                HeaderButton(
+                    icon: mic.muted ? .micOff : .mic,
+                    help: mic.muted
+                        ? "Unmute: what you say is transcribed again (⌃⌥V)"
+                        : "Mute Midas's microphone: what you say isn't transcribed (⌃⌥V)",
+                    active: mic.muted,
+                    action: client.toggleMute)
+            }
             HeaderButton(icon: .minimize, help: "Hide the panel (⌃⌥M)", action: hide)
             HeaderButton(icon: .settings, help: "Settings", active: showSettings) {
                 withAnimation(.easeOut(duration: 0.15)) { showSettings.toggle() }
@@ -342,10 +351,16 @@ private struct SettingsDrawer: View {
             }
             ListenTo(client: client)
             Rectangle().fill(tide.divider).frame(height: 1)
-            HStack(spacing: 14) {
-                shortcut("⌃⌥A", "Answer")
-                shortcut("⌃⌥M", "Show / hide")
-                shortcut("⌃⌥P", "Off the record")
+            // Two to a row, so four fit without cutting a name short.
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
+                GridRow {
+                    shortcut("⌃⌥A", "Answer")
+                    shortcut("⌃⌥M", "Show / hide")
+                }
+                GridRow {
+                    shortcut("⌃⌥P", "Off the record")
+                    if client.snapshot?.mic != nil { shortcut("⌃⌥V", "Mute your microphone") }
+                }
             }
             HStack {
                 if let root {

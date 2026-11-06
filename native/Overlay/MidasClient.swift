@@ -70,6 +70,13 @@ struct Snapshot: Decodable {
     var privacy: PrivacySettings? = nil
     var map: MapInfo? = nil  // the meeting map's version and counts; nil from older daemons
     var source: AudioSource? = nil  // what Midas listens to; nil from older daemons
+    var mic: MicState? = nil  // the user's microphone; nil when it is turned off in config.toml
+}
+
+/// Midas's microphone: on during the chosen app's calls, and muted with ⌃⌥V.
+struct MicState: Decodable, Equatable {
+    let state: String  // listening (in a call), waiting
+    let muted: Bool
 }
 
 /// What Midas listens to: "auto" (the app in a call), "all" (the whole Mac), an app's
@@ -285,6 +292,12 @@ final class MidasClient: ObservableObject {
 
     func togglePause() {
         post("control", ["action": snapshot?.paused == true ? "resume" : "pause"])
+    }
+
+    /// Midas mute: what you say isn't transcribed until you unmute.
+    func toggleMute() {
+        guard let mic = snapshot?.mic else { return }
+        post("control", ["action": mic.muted ? "unmute" : "mute"])
     }
 
     /// Switches between Claude and Ollama, or restarts the copilot with another model or effort.

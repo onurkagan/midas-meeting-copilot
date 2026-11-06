@@ -127,7 +127,7 @@ enum Preview {
                 : CopilotSettings(model: "opus", effort: "medium"),
             session: 1, count: events.count, events: events,
             draft: local ? "**Postgres for now.** Our volumes are small, and we can move analytics to" : nil,
-            privacy: privacy(reminder: false))
+            privacy: privacy(reminder: false), mic: MicState(state: "listening", muted: false))
     }
 
     private static func privacy(reminder: Bool) -> PrivacySettings {

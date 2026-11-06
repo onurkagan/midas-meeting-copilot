@@ -21,7 +21,7 @@ enum HotKeys {
                 return noErr
             }, 1, &spec, nil, nil)
         let modifiers = UInt32(controlKey | optionKey)
-        for (id, key, name) in [(UInt32(1), kVK_ANSI_M, "⌃⌥M"), (2, kVK_ANSI_A, "⌃⌥A"), (3, kVK_ANSI_P, "⌃⌥P")] {
+        for (id, key, name) in [(UInt32(1), kVK_ANSI_M, "⌃⌥M"), (2, kVK_ANSI_A, "⌃⌥A"), (3, kVK_ANSI_P, "⌃⌥P"), (4, kVK_ANSI_V, "⌃⌥V")] {
             var ref: EventHotKeyRef?
             let status = RegisterEventHotKey(
                 UInt32(key), modifiers, EventHotKeyID(signature: OSType(0x4D44_4153), id: id),
