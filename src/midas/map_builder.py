@@ -34,7 +34,9 @@ You get the map so far and the lines said since your last look. Return only what
 - topics: new topics, 2 to 4 words, each with a key you choose and the ids of the lines \
 where it starts. Prefer an existing topic (by its id); a meeting rarely has more than 7.
 - items: new items. Each has a type, its topic (an existing topic id or a new topic's key), \
-a label of at most 7 words, and the ids of the lines it rests on. Types:
+a label of at most 7 words, and the ids of the lines it rests on. A topic marked "from the \
+last meeting" only holds what that meeting left open: put new items under this meeting's \
+own topics. Types:
   question: a question put to the user, or to everyone, that needs an answer. Give it a key.
   answer: a line marked "Midas suggested" that answers a question; set "answers" to that \
 question's id or key. Skip summaries, explanations and other suggestions.
@@ -44,7 +46,8 @@ due: as said ("Thursday"), else empty.
   risk: a concern or something that could go wrong.
   open_question: a question the meeting left open.
 - updates: changes to existing items by id, when later lines change them (a new due date, \
-a clearer label).
+a clearer label). This includes the items from the last meeting: when a line says one \
+slipped or got a new date, update it instead of adding it again.
 - links: pairs of item ids (or keys) about the same issue under different topics.
 - title: a name for the meeting, at most 4 words, only if the map has none yet.
 

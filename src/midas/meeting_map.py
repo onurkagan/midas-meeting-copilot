@@ -25,6 +25,8 @@ KINDS = {
     "open_question": "open",
 }
 SUBTYPES = {"risk": "Risk", "open_question": "Open question"}
+# Where new items go that a model filed under the last meeting's open items.
+FOLLOW_UPS = "Follow-ups"
 # The events each kind of node may cite: answers cite Midas's answer, the rest what was said.
 SOURCES = {"answer": ("answer",)}
 SPOKEN = ("transcript",)
@@ -119,6 +121,14 @@ class MeetingMap:
             rows += sorted(answers.get(n["id"], []), key=lambda n: n["first"])
         return rows
 
+    def _follow_ups(self, cited: list[dict]) -> str:
+        if existing := self._find("topic", FOLLOW_UPS):
+            return existing["id"]
+        node = {"id": self._id("t"), "type": "topic", "label": FOLLOW_UPS, "sources": cited[:3]}
+        node.update(first=cited[0]["id"], time=cited[0]["time"][:5], side=None)
+        self.nodes[node["id"]] = node
+        return node["id"]
+
     def _side(self) -> str:
         """A new topic goes on the side with fewer rows, so the map stays balanced."""
         height = {"left": 0, "right": 0}
@@ -177,6 +187,9 @@ class MeetingMap:
                 cited = sources(item.get("source"), SOURCES.get(kind, SPOKEN))
                 if not topic or self.nodes[topic]["type"] != "topic" or not label or not cited:
                     continue
+                if self.nodes[topic].get("carried"):
+                    # The last meeting's open items stay as they came; new ones belong to this meeting.
+                    topic = self._follow_ups(cited)
                 if kind == "answer":
                     # One node per answer Midas gave; it answers a question if the model says which.
                     if any(n["type"] == "answer" and n["sources"][0]["id"] == cited[0]["id"] for n in self.nodes.values()):
@@ -353,7 +366,8 @@ class MeetingMap:
                 return "(empty)"
             lines = [f"title: {self.title}"] if self.title else []
             for topic in sorted(self._topics(), key=lambda t: t["first"]):
-                lines.append(f"{topic['id']} topic: {topic['label']}")
+                carried = " (from the last meeting)" if topic.get("carried") else ""
+                lines.append(f"{topic['id']} topic{carried}: {topic['label']}")
                 for row in self._rows(topic["id"]):
                     kind = row.get("sub", row["type"]).lower().replace(" ", "_")
                     extra = ""
