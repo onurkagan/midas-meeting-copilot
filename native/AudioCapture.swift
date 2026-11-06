@@ -5,9 +5,9 @@
 //
 // Usage: midas-audio [--rate 16000] [--app <bundle ID> | --app auto] [--mic]
 //        midas-audio --list   (the apps using audio, as JSON)
-// With --app the tap runs only while that app uses the microphone, that is, while it is
-// in a call; "auto" follows whichever app does. --mic captures the user's microphone
-// instead, with macOS's echo cancellation, also only during that app's calls. Status
+// --app <bundle ID> taps that app whenever it plays; --app auto taps whichever app is in a
+// call (its microphone is on), and only during the call. --mic captures the user's
+// microphone instead, with macOS's echo cancellation, only during that app's calls. Status
 // lines go to stderr, raw PCM goes to stdout.
 
 import AVFoundation
@@ -490,6 +490,15 @@ enum AudioApps {
         return bundle.takeRetainedValue() as String
     }
 
+    /// An app's name from its bundle ID, also when it isn't running.
+    static func name(_ bundle: String) -> String {
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first, let name = app.localizedName {
+            return name
+        }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else { return bundle }
+        return FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+    }
+
     /// The apps using audio, those in a call (microphone on) first, as JSON for the panel.
     static func list() -> String {
         var apps: [String: [String: Any]] = [:]
@@ -508,11 +517,13 @@ enum AudioApps {
     }
 }
 
-/// Taps the meeting app only while it is in a call (its microphone is on), and nothing in
-/// between: a video in another app, or in the same app outside a call, never reaches Midas.
+/// Follows one app: an app chosen by name whenever it plays, or the app in a call (and the
+/// microphone) only during the call, so a video outside the call never reaches Midas.
 final class AppFollower {
     private let target: String?  // a bundle ID, or nil to follow whichever app uses the microphone
     private let capture: CallCapture
+    /// Only while the app's microphone is on: for "auto", and always for the microphone.
+    private let duringCalls: Bool
     private var app: String?
     private var tapped: Set<AudioObjectID> = []
     private var watched: Set<AudioObjectID> = []
@@ -521,9 +532,10 @@ final class AppFollower {
     /// A microphone briefly off (some apps release it on mute) doesn't end the call.
     private let grace: TimeInterval = 15
 
-    init(target: String?, capture: CallCapture) {
+    init(target: String?, capture: CallCapture, duringCalls: Bool) {
         self.target = target
         self.capture = capture
+        self.duringCalls = duringCalls
     }
 
     func start() {
@@ -552,8 +564,8 @@ final class AppFollower {
             app = next  // the app in a call; a current one keeps the tap while it stays in its call
         }
         let members = processes.filter { $0.app == app }
-        let name = members.first?.name ?? app ?? ""
-        if members.contains(where: \.input) {
+        let name = members.first?.name ?? app.map(AudioApps.name) ?? ""
+        if duringCalls ? members.contains(where: \.input) : !members.isEmpty {
             micOffSince = nil
             let ids = Set(members.map(\.id))
             if !capture.running || ids != tapped {
@@ -569,22 +581,28 @@ final class AppFollower {
             return
         }
         guard capture.running else {
-            report(app == nil || target == nil && inCall.isEmpty
-                ? "waiting: no app is in a call (using the microphone)"
-                : "waiting: \(name.isEmpty ? app ?? "" : name) isn't in a call (its microphone is off)")
+            if !duringCalls {
+                report("waiting: \(name) isn't playing anything")
+            } else {
+                report(app == nil || target == nil && inCall.isEmpty
+                    ? "waiting: no app is in a call (using the microphone)"
+                    : "waiting: \(name) isn't in a call (its microphone is off)")
+            }
             return
         }
-        let since = micOffSince ?? Date()
-        micOffSince = since
-        if Date().timeIntervalSince(since) < grace {
-            DispatchQueue.main.asyncAfter(deadline: .now() + grace + 0.1) { [weak self] in self?.evaluate() }
-            return
+        if duringCalls {
+            let since = micOffSince ?? Date()
+            micOffSince = since
+            if Date().timeIntervalSince(since) < grace {
+                DispatchQueue.main.asyncAfter(deadline: .now() + grace + 0.1) { [weak self] in self?.evaluate() }
+                return
+            }
         }
         capture.stop()
         tapped = []
         micOffSince = nil
         if target == nil { app = nil }
-        log("stopped: \(name) left the call (microphone off)")
+        log(duringCalls ? "stopped: \(name) left the call (microphone off)" : "stopped: \(name) quit")
         reported = ""
         evaluate()
     }
@@ -645,7 +663,7 @@ if microphone {
 
 let capture = SystemAudioCapture(sampleRate: sampleRate)
 let call: CallCapture = microphone ? MicrophoneCapture(sampleRate: sampleRate) : capture
-let follower = follow.map { AppFollower(target: $0 == "auto" ? nil : $0, capture: call) }
+let follower = follow.map { AppFollower(target: $0 == "auto" ? nil : $0, capture: call, duringCalls: microphone || $0 == "auto") }
 if let follower {
     follower.start()
 } else {
