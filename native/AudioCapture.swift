@@ -3,11 +3,12 @@
 // 16-bit PCM. No virtual audio driver and no meeting bot: the tap is private to this
 // process.
 //
-// Usage: midas-audio [--rate 16000] [--app <bundle ID> | --app auto]
+// Usage: midas-audio [--rate 16000] [--app <bundle ID> | --app auto] [--mic]
 //        midas-audio --list   (the apps using audio, as JSON)
 // With --app the tap runs only while that app uses the microphone, that is, while it is
-// in a call; "auto" follows whichever app does. Status lines go to stderr, raw PCM goes
-// to stdout.
+// in a call; "auto" follows whichever app does. --mic captures the user's microphone
+// instead, with macOS's echo cancellation, also only during that app's calls. Status
+// lines go to stderr, raw PCM goes to stdout.
 
 import AVFoundation
 import AppKit
@@ -158,7 +159,14 @@ enum AudioPermission {
     }
 }
 
-final class SystemAudioCapture {
+/// Something the follower turns on for a call and off after it: the app's tap, or the microphone.
+protocol CallCapture: AnyObject {
+    var running: Bool { get }
+    func start(processes: [AudioObjectID]?) throws
+    func stop()
+}
+
+final class SystemAudioCapture: CallCapture {
     private let outputFormat: AVAudioFormat
     private let queue = DispatchQueue(label: "midas.audio.io", qos: .userInteractive)
 
@@ -178,7 +186,7 @@ final class SystemAudioCapture {
     }
 
     /// Taps these processes (Core Audio process objects), or every process when nil.
-    func start(processes: [AudioObjectID]? = nil) throws {
+    func start(processes: [AudioObjectID]?) throws {
         let outputID = try defaultOutputDevice()
         let outputUID = try deviceUID(outputID)
 
@@ -312,6 +320,112 @@ final class SystemAudioCapture {
     }
 }
 
+// MARK: - Microphone
+
+/// The user's own voice, through macOS's voice processing: it removes what the speakers
+/// play (the other participants) from the microphone, as call apps do.
+final class MicrophoneCapture: CallCapture {
+    private let outputFormat: AVAudioFormat
+    private var engine: AVAudioEngine?
+    private var converter: AVAudioConverter?
+    private var observer: NSObjectProtocol?
+
+    init(sampleRate: Double) {
+        outputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true)!
+    }
+
+    var running: Bool { engine != nil }
+
+    func start(processes: [AudioObjectID]?) throws {
+        let engine = AVAudioEngine()
+        let input = engine.inputNode
+        do {
+            try input.setVoiceProcessingEnabled(true)
+            // Leave the meeting app's volume alone.
+            input.voiceProcessingOtherAudioDuckingConfiguration = .init(enableAdvancedDucking: false, duckingLevel: .min)
+        } catch {
+            log("echo cancellation unavailable, using the plain microphone: \(error.localizedDescription)")
+        }
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, let converter = AVAudioConverter(from: format, to: outputFormat) else {
+            throw CoreAudioError(what: "open the microphone", status: -1)
+        }
+        converter.downmix = true
+        self.converter = converter
+        input.installTap(onBus: 0, bufferSize: 1600, format: format) { [weak self] buffer, _ in self?.write(buffer) }
+        _ = engine.mainMixerNode  // voice processing needs the output side of the graph too
+        engine.prepare()
+        try engine.start()
+        self.engine = engine
+        // Another microphone (AirPods, a headset): start over on it.
+        observer = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            guard let self, self.running else { return }
+            log("microphone changed, restarting")
+            self.stop()
+            do { try self.start(processes: nil) } catch { log("error: microphone restart failed: \(error)") }
+        }
+        log("ready source=microphone \(Int(format.sampleRate))Hz/\(format.channelCount)ch output=\(Int(outputFormat.sampleRate))Hz/1ch/s16le")
+    }
+
+    func stop() {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
+        engine?.inputNode.removeTap(onBus: 0)
+        engine?.stop()
+        engine = nil
+        converter = nil
+    }
+
+    private func write(_ buffer: AVAudioPCMBuffer) {
+        guard let converter else { return }
+        let ratio = outputFormat.sampleRate / buffer.format.sampleRate
+        guard let out = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 64)
+        else { return }
+        var consumed = false
+        var error: NSError?
+        converter.convert(to: out, error: &error) { _, status in
+            if consumed {
+                status.pointee = .noDataNow
+                return nil
+            }
+            consumed = true
+            status.pointee = .haveData
+            return buffer
+        }
+        guard error == nil, out.frameLength > 0, let samples = out.int16ChannelData?[0] else { return }
+        writeStdout(samples, Int(out.frameLength) * MemoryLayout<Int16>.size)
+    }
+}
+
+enum MicrophonePermission {
+    static func ensure() {
+        let help = "error: no Microphone permission. Enable midas-audio in System Settings › Privacy & Security › Microphone"
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return
+        case .notDetermined:
+            log("requesting Microphone permission")
+            let done = DispatchSemaphore(value: 0)
+            var granted = false
+            AVCaptureDevice.requestAccess(for: .audio) { result in
+                granted = result
+                done.signal()
+            }
+            _ = done.wait(timeout: .now() + 300)
+            if !granted {
+                log(help)
+                exit(3)
+            }
+        default:
+            log(help)
+            exit(3)
+        }
+    }
+}
+
 // MARK: - Apps
 
 /// A process Core Audio knows, and the app it plays for.
@@ -398,7 +512,7 @@ enum AudioApps {
 /// between: a video in another app, or in the same app outside a call, never reaches Midas.
 final class AppFollower {
     private let target: String?  // a bundle ID, or nil to follow whichever app uses the microphone
-    private let capture: SystemAudioCapture
+    private let capture: CallCapture
     private var app: String?
     private var tapped: Set<AudioObjectID> = []
     private var watched: Set<AudioObjectID> = []
@@ -407,7 +521,7 @@ final class AppFollower {
     /// A microphone briefly off (some apps release it on mute) doesn't end the call.
     private let grace: TimeInterval = 15
 
-    init(target: String?, capture: SystemAudioCapture) {
+    init(target: String?, capture: CallCapture) {
         self.target = target
         self.capture = capture
     }
@@ -495,6 +609,7 @@ final class AppFollower {
 var sampleRate = 16000.0
 var disclaimed = false
 var follow: String?  // --app: a bundle ID, or "auto"
+var microphone = false  // --mic: the user's own voice instead of the app's audio
 var arguments = CommandLine.arguments.dropFirst().makeIterator()
 while let argument = arguments.next() {
     switch argument {
@@ -504,11 +619,13 @@ while let argument = arguments.next() {
         disclaimed = true
     case "--app":
         follow = arguments.next()
+    case "--mic":
+        microphone = true
     case "--list":
         print(AudioApps.list())
         exit(0)
     case "-h", "--help":
-        print("usage: midas-audio [--rate 16000] [--app <bundle ID>|auto] | --list  (PCM s16le mono on stdout)")
+        print("usage: midas-audio [--rate 16000] [--app <bundle ID>|auto] [--mic] | --list  (PCM s16le mono on stdout)")
         exit(0)
     default:
         log("unknown argument: \(argument)")
@@ -519,15 +636,21 @@ while let argument = arguments.next() {
 if !disclaimed {
     relaunchAsResponsibleProcess()
 }
-AudioPermission.ensure()
+if microphone {
+    MicrophonePermission.ensure()
+    follow = follow ?? "auto"  // the microphone only ever runs during a call
+} else {
+    AudioPermission.ensure()
+}
 
 let capture = SystemAudioCapture(sampleRate: sampleRate)
-let follower = follow.map { AppFollower(target: $0 == "auto" ? nil : $0, capture: capture) }
+let call: CallCapture = microphone ? MicrophoneCapture(sampleRate: sampleRate) : capture
+let follower = follow.map { AppFollower(target: $0 == "auto" ? nil : $0, capture: call) }
 if let follower {
     follower.start()
 } else {
     do {
-        try capture.start()
+        try capture.start(processes: nil)
     } catch {
         log("error: \(error)")
         exit(1)
@@ -545,7 +668,7 @@ AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &ou
     }
     capture.stop()
     do {
-        try capture.start()
+        try capture.start(processes: nil)
     } catch {
         log("error: restart failed: \(error)")
         exit(2)
@@ -557,7 +680,7 @@ for signalNumber in [SIGINT, SIGTERM] {
     signal(signalNumber, SIG_IGN)
     let source = DispatchSource.makeSignalSource(signal: signalNumber, queue: .main)
     source.setEventHandler {
-        capture.stop()
+        call.stop()
         exit(0)
     }
     source.resume()

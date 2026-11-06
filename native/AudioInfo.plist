@@ -8,5 +8,7 @@
 	<string>midas-audio</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Midas listens to system audio to transcribe your meetings.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Midas transcribes what you say in your calls, so your part of the meeting is in the notes too.</string>
 </dict>
 </plist>
