@@ -16,6 +16,8 @@ Midas listens to meetings, so this page says exactly what it keeps, where text g
 
 For Midas.app these files are in `~/Library/Application Support/Midas` (⚙︎ → **Open folder**); in a terminal setup, in the Midas folder. Nothing said while you're off the record (⌃⌥P) is transcribed or kept; the transcript only marks where the gap was.
 
+Midas.app runs Claude Code without its session history, so the meeting isn't also kept in Claude Code's own history. Versions before November 2026 left those sessions in `~/.claude/projects/`, in a folder whose name ends in `Application-Support-Midas`; you can delete that folder. When you run `/midas` yourself in Claude Code, that session is kept like any other.
+
 ## Where text goes
 
 **With the Claude copilot**, Claude Code reads the meeting through Midas's local MCP bridge and sends it to Anthropic, under your Claude account and Anthropic's terms and privacy settings (including whether your conversations may be used to improve their models, which you choose in your Claude account). Claude receives:
