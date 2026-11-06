@@ -162,7 +162,7 @@
           "name": "Does it transcribe my own voice?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart."
+            "text": "Yes, during calls. Midas also listens to your microphone while the meeting app is in a call and marks your lines You; macOS's echo cancellation keeps the other side out of them. Mute it any time with ⌃⌥V. The people on the other side aren't told apart."
           }
         },
         {
@@ -532,7 +532,7 @@
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></svg></div>
           <h3>No meeting bot</h3>
-          <p>Nothing joins the call: Midas captures system audio with macOS's Core Audio process tap, without a virtual audio driver. It reminds you to tell the others, with a message ready for the chat.</p>
+          <p>Nothing joins the call: Midas taps the meeting app's audio with macOS's Core Audio process tap, only while you're in the call, without a virtual audio driver. It reminds you to tell the others, with a message ready for the chat.</p>
         </article>
         <article class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2"/></svg></div>
@@ -713,7 +713,7 @@
         </details>
         <details>
           <summary>Does it transcribe my own voice?</summary>
-          <p>No. Midas captures system audio only, so Claude hears the other participants. Speakers aren't told apart.</p>
+          <p>Yes, during calls. Midas also listens to your microphone while the meeting app is in a call and marks your lines <b>You</b>; macOS's echo cancellation keeps the other side out of them. Mute it any time with ⌃⌥V. The people on the other side aren't told apart.</p>
         </details>
         <details>
           <summary>What do I need to run it?</summary>

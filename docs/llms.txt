@@ -1,12 +1,12 @@
 # Midas
 
-> Midas is a free, open-source (MIT) AI meeting copilot for macOS. It captures the Mac's system audio, transcribes Zoom, Google Meet, Microsoft Teams or any other call on device with Whisper large-v3-turbo (MLX, Apple Silicon), and, when the user presses Answer, Claude Code drafts a reply over MCP and shows it in a floating panel that is hidden from screen sharing. No bot joins the call and audio never leaves the Mac.
+> Midas is a free, open-source (MIT) AI meeting copilot for macOS. It captures the audio of the app you're in a call with, and your microphone, and transcribes Zoom, Google Meet, Microsoft Teams or any other call on device with Whisper large-v3-turbo (MLX, Apple Silicon), and, when the user presses Answer, Claude Code drafts a reply over MCP and shows it in a floating panel that is hidden from screen sharing. No bot joins the call and audio never leaves the Mac.
 
 Key facts:
 
 - Platform: Apple Silicon Mac, macOS 14.4 or later. Not available for Intel Macs, Windows or Linux.
 - Install: `curl -fsSL https://raw.githubusercontent.com/onurkagan/midas-meeting-copilot/main/install.sh | bash` sets up Xcode tools, Python and Claude Code if missing, builds Midas and installs Midas.app. Running it again updates Midas.
-- Audio capture: Core Audio process tap; no meeting bot, no virtual audio driver. Only system audio, not the microphone.
+- Audio capture: a Core Audio process tap on the app in a call, only during the call, plus the microphone with macOS's echo cancellation (the user's lines are marked You); no meeting bot, no virtual audio driver. An optional Chrome extension, Midas for Chrome, sends a single tab instead of the whole browser.
 - Transcription: local Whisper large-v3-turbo via mlx-whisper; Turkish and English by default, configurable.
 - AI: Claude through Claude Code, connected with an MCP server (tools: wait_for_conversation, show_answer, get_transcript, midas_status, list_meetings, search_meetings, get_meeting). Model (Opus, Sonnet, Haiku) and effort are chosen in the panel.
 - Local AI: alternatively any model pulled into Ollama, chosen in the panel; the daemon streams its answer into the panel and nothing leaves the Mac (no Claude account needed).
