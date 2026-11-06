@@ -17,8 +17,9 @@ struct TimelineView: View {
                     if client.events.isEmpty && client.partial.isEmpty {
                         EmptyTimeline().padding(.top, 48)
                     }
+                    let turns = Self.turns(client.events)
                     ForEach(Array(client.events.enumerated()), id: \.element.id) { index, event in
-                        row(event, after: index > 0 ? client.events[index - 1] : nil)
+                        row(event, after: index > 0 ? client.events[index - 1] : nil, turn: turns.contains(event.id))
                     }
                     if client.pending { DraftingCard(name: client.copilotName, draft: client.draft) }
                     if !client.partial.isEmpty { LiveLine(text: client.partial) }
@@ -74,13 +75,25 @@ struct TimelineView: View {
         }
     }
 
+    /// The lines where the speaker changes between the call and you (the microphone): they
+    /// get a name. A meeting heard only from the call has none.
+    private static func turns(_ events: [MidasEvent]) -> Set<Int> {
+        var turns: Set<Int> = []
+        var you = false
+        for event in events where event.kind == "transcript" {
+            if event.isYou != you { turns.insert(event.id) }
+            you = event.isYou
+        }
+        return turns
+    }
+
     @ViewBuilder
-    private func row(_ event: MidasEvent, after previous: MidasEvent?) -> some View {
+    private func row(_ event: MidasEvent, after previous: MidasEvent?, turn: Bool) -> some View {
         switch event.kind {
         case "transcript":
             // The time only where the minute changes keeps the column quiet.
             let sameMinute = previous?.kind == "transcript" && previous?.minute == event.minute
-            TranscriptLine(event: event, showTime: !sameMinute)
+            TranscriptLine(event: event, showTime: !sameMinute, speaker: turn ? (event.isYou ? "You" : "Others") : nil)
         case "request":
             RequestMarker(event: event)
         case "marker":
@@ -134,18 +147,28 @@ private struct TimeLabel: View {
 struct TranscriptLine: View {
     let event: MidasEvent
     let showTime: Bool
+    var speaker: String? = nil  // "You" or "Others" where the speaker changes
     @Environment(\.tide) private var tide
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             TimeLabel(text: showTime ? event.minute : "")
-            Text(event.text)
-                .font(Tide.font(13))
-                .foregroundStyle(tide.body)
-                .lineSpacing(1.5)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                if let speaker {
+                    Text(speaker)
+                        .font(Tide.font(10.5, .bold))
+                        .foregroundStyle(event.isYou ? tide.accentText : tide.muted)
+                }
+                Text(event.text)
+                    .font(Tide.font(13, event.isYou ? .medium : .regular))
+                    .foregroundStyle(event.isYou ? tide.ink : tide.body)
+                    .lineSpacing(1.5)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(event.isYou ? "You" : "Others"): \(event.text)")
     }
 }
 

@@ -109,11 +109,15 @@ enum Preview {
                 "**Friday works for the core flow.** I'd ship the happy path and treat refunds as a follow-up.\n- Sandbox tests finish Thursday\n- Risk: webhook retries, needs one more day",
                 "Ship payments by Friday?"
             ),
+            ("10:02:41", "you", "Friday works for the core flow. Refunds can follow next sprint.", ""),
             ("10:03:02", "transcript", "Okay. And which database are we using for analytics?", ""),
         ]
         if pending { lines.append(("10:03:05", "request", "", "")) }
         let events = lines.enumerated().map { index, line in
-            MidasEvent(id: index + 1, time: line.0, kind: line.1, text: line.2, title: line.3)
+            // "you": a line from the user's microphone.
+            MidasEvent(
+                id: index + 1, time: line.0, kind: line.1 == "you" ? "transcript" : line.1, text: line.2, title: line.3,
+                speaker: line.1 == "you" ? "you" : line.1 == "transcript" ? "others" : nil)
         }
         return Snapshot(
             status: "listening", paused: false, speaking: true, claude: pending ? "thinking" : "ready",

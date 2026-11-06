@@ -10,6 +10,9 @@ struct MidasEvent: Decodable, Identifiable, Equatable {
     let text: String
     let title: String
     var ts: Double? = nil  // Unix time
+    var speaker: String? = nil  // transcript lines: "others" (the call) or "you" (the microphone)
+
+    var isYou: Bool { speaker == "you" }
 
     /// "HH:MM", for the timeline.
     var minute: String { String(time.prefix(5)) }
